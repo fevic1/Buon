@@ -23,15 +23,19 @@
       <button class="tab" data-view="book">overlap</button>
     </nav>
     <div class="nav-right">
+      <span class="pill" id="clock">--:--:--</span>
       <button class="primary" id="connectBtn">Connect wallet</button>
     </div>
   </header>
+  <div class="ticker-wrap">
+    <div class="ticker" id="ticker">waiting on live tape…</div>
+  </div>
   <main class="shell">
     <section class="hero-strip">
       <div>
         <p class="kicker">buon desk · ranked wallets · signed swaps</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Live leader flow. Identical coins across top wallets. You click. Your wallet signs.</p>
+        <p class="sub">Live leader flow. Official trader photos. Coin art from the tape. Your wallet balance on the left.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -60,7 +64,10 @@
             <span>Propose Solana buys on crowded / potential</span>
           </label>
           <p class="fine">Auto never bypasses your wallet. Phantom still pops for every swap.</p>
-          <div class="wallet-box" id="walletBox">Not connected</div>
+          <div class="wallet-box" id="walletBox">
+            <div class="w-addr" id="walletAddr">Not connected</div>
+            <div class="bals" id="walletBals"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-h"><h2>identical coins</h2></div>
