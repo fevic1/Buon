@@ -1,11 +1,19 @@
 (function () {
-  const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
   const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
   const ASSOC = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
   const JQ = "https://lite-api.jup.ag/swap/v1/quote";
   const JS = "https://lite-api.jup.ag/swap/v1/swap";
   const RPC_KEY = "buon_rpc";
+  const SOL_RPCS = [
+    "https://api.mainnet-beta.solana.com",
+    "https://solana.drpc.org",
+    "https://solana-rpc.publicnode.com"
+  ];
+  const BASE_RPCS = ["https://mainnet.base.org", "https://base.llamarpc.com"];
   const CHAIN_ID = { ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56, robinhood: 4663, rh: 4663 };
+
   function normRpc(v) {
     v = String(v || "").trim();
     if (!v) return "";
@@ -13,15 +21,21 @@
     if (/^[0-9a-f-]{8,}$/i.test(v)) return "https://mainnet.helius-rpc.com/?api-key=" + v;
     return v;
   }
+  function solList() {
+    var extra = normRpc((document.getElementById("rpcUrl") && document.getElementById("rpcUrl").value) || localStorage.getItem(RPC_KEY) || "");
+    var list = extra ? [extra] : [];
+    SOL_RPCS.forEach(function (u) { if (list.indexOf(u) < 0) list.push(u); });
+    return list;
+  }
   function loadCreds() {
-    var rpc = document.getElementById("rpcUrl");
-    var saved = localStorage.getItem(RPC_KEY) || "";
-    if (rpc) rpc.value = saved || rpc.value || "";
-    ["sizeUsd", "minAlert", "minOverlap", "tapeKey"].forEach(function (id) {
+    ["sizeUsd", "minAlert", "minOverlap", "tapeKey", "tpPct"].forEach(function (id) {
       var el = document.getElementById(id);
       var v = localStorage.getItem("buon_" + id);
       if (el && v) el.value = v;
     });
+    var rpc = document.getElementById("rpcUrl");
+    var saved = localStorage.getItem(RPC_KEY) || "";
+    if (rpc && saved) rpc.value = saved;
     var auto = document.getElementById("autoBuy");
     if (auto) auto.checked = localStorage.getItem("buon_autoBuy") === "1";
     var last = Number(localStorage.getItem("buon_last_usdc") || 0);
@@ -33,11 +47,11 @@
   }
   function saveCreds() {
     var rpc = document.getElementById("rpcUrl");
-    if (rpc) {
+    if (rpc && rpc.value) {
       var n = normRpc(rpc.value);
       if (n) { rpc.value = n; localStorage.setItem(RPC_KEY, n); }
     }
-    ["sizeUsd", "minAlert", "minOverlap", "tapeKey"].forEach(function (id) {
+    ["sizeUsd", "minAlert", "minOverlap", "tapeKey", "tpPct"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el && el.value) localStorage.setItem("buon_" + id, el.value);
     });
@@ -45,55 +59,91 @@
     if (auto) localStorage.setItem("buon_autoBuy", auto.checked ? "1" : "0");
   }
   loadCreds();
-  ["rpcUrl", "sizeUsd", "minAlert", "minOverlap", "tapeKey", "autoBuy"].forEach(function (id) {
+  ["rpcUrl", "sizeUsd", "minAlert", "minOverlap", "tapeKey", "autoBuy", "tpPct"].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("change", saveCreds);
     el.addEventListener("input", saveCreds);
   });
-  function rpcUrl() {
-    return normRpc(document.getElementById("rpcUrl") && document.getElementById("rpcUrl").value) || localStorage.getItem(RPC_KEY) || "";
-  }
-  async function rpc(method, params) {
-    var url = rpcUrl();
-    if (!url) throw new Error("Paste Helius RPC once — it will be saved");
-    var res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
-    var data = await res.json();
-    if (data.error) throw new Error(data.error.message || ("rpc " + res.status));
-    return data.result;
+
+  async function solRpc(method, params) {
+    var last = "no rpc";
+    var urls = solList();
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var res = await fetch(urls[i], {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
+        });
+        var text = await res.text();
+        var data;
+        try { data = JSON.parse(text); } catch (e) { last = text.slice(0, 80); continue; }
+        if (data.error) { last = data.error.message; continue; }
+        return data.result;
+      } catch (e) { last = e.message || String(e); }
+    }
+    throw new Error(last);
   }
   window.connection = async function () {
-    var url = rpcUrl();
-    if (!url) throw new Error("Paste Helius RPC once — it will be saved");
+    var url = solList()[0];
     return new window.solanaWeb3.Connection(url, "confirmed");
   };
-  async function usdcOf(owner) {
+  async function solUsdc(owner) {
     var PK = window.solanaWeb3.PublicKey;
-    var found = await PK.findProgramAddress([new PK(owner).toBuffer(), new PK(TOKEN).toBuffer(), new PK(USDC).toBuffer()], new PK(ASSOC));
-    var acc = await rpc("getAccountInfo", [found[0].toString(), { encoding: "jsonParsed" }]);
+    var found = await PK.findProgramAddress([new PK(owner).toBuffer(), new PK(TOKEN).toBuffer(), new PK(USDC_SOL).toBuffer()], new PK(ASSOC));
+    var acc = await solRpc("getAccountInfo", [found[0].toString(), { encoding: "jsonParsed" }]);
     var ta = acc && acc.value && acc.value.data && acc.value.data.parsed && acc.value.data.parsed.info && acc.value.data.parsed.info.tokenAmount;
     return Number((ta && ta.uiAmount) || 0);
   }
-  function paintCash(usdc, sol) {
-    state.cashUsdc = usdc;
-    localStorage.setItem("buon_last_usdc", String(usdc));
-    document.getElementById("cashAmt").textContent = usdc.toFixed(2) + " USDC";
-    document.getElementById("gasAmt").textContent = "SOL gas " + Number(sol || 0).toFixed(4);
-    document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
-    document.getElementById("walletBals").innerHTML = "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + usdc.toFixed(2) + "</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(sol || 0).toFixed(4) + "</span></div>";
+  async function evmRpc(urls, body) {
+    var last = "no evm rpc";
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var res = await fetch(urls[i], { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+        var data = await res.json();
+        if (data.error) { last = data.error.message; continue; }
+        return data.result;
+      } catch (e) { last = e.message || String(e); }
+    }
+    throw new Error(last);
+  }
+  async function baseUsdc(addr) {
+    if (!addr || addr.indexOf("0x") !== 0) return 0;
+    var data = "0x70a08231" + addr.slice(2).toLowerCase().padStart(64, "0");
+    var raw = await evmRpc(BASE_RPCS, { jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: USDC_BASE, data: data }, "latest"] });
+    return Number(BigInt(raw || "0x0")) / 1e6;
+  }
+  function paintCash(base, solUsdc, solGas) {
+    var total = Number(base || 0) + Number(solUsdc || 0);
+    state.cashUsdc = total;
+    state.baseUsdc = Number(base || 0);
+    state.solUsdc = Number(solUsdc || 0);
+    localStorage.setItem("buon_last_usdc", String(total));
+    var amt = document.getElementById("cashAmt");
+    if (amt) amt.textContent = total.toFixed(2) + " USDC";
+    var gas = document.getElementById("gasAmt");
+    if (gas) gas.textContent = "SOL " + Number(solGas || 0).toFixed(4);
+    var box = document.getElementById("walletBals");
+    if (box) box.innerHTML =
+      "<div class=\"bal-row\"><span>Base USDC</span><span class=\"amt\">" + Number(base || 0).toFixed(2) + "</span></div>" +
+      "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + Number(solUsdc || 0).toFixed(2) + "</span></div>" +
+      "<div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(solGas || 0).toFixed(4) + "</span></div>";
   }
   window.refreshBalance = window.deskRefresh = async function () {
-    if (!state.wallet) return;
+    if (!state.wallet && !state.evm) return;
+    var solU = 0, solG = 0, base = 0;
     try {
-      var lamports = await rpc("getBalance", [state.wallet]);
-      var sol = Number((lamports && lamports.value) || 0) / 1e9;
-      var usdc = await usdcOf(state.wallet);
-      paintCash(usdc, sol);
-    } catch (err) {
-      log("balance: " + (err.message || err));
-      var last = Number(localStorage.getItem("buon_last_usdc") || 0);
-      if (last) paintCash(last, 0);
-    }
+      if (state.wallet) {
+        var lamports = await solRpc("getBalance", [state.wallet]);
+        solG = Number((lamports && lamports.value) || 0) / 1e9;
+        solU = await solUsdc(state.wallet);
+      }
+    } catch (err) { log("sol balance: " + (err.message || err)); }
+    try {
+      if (state.evm) base = await baseUsdc(state.evm);
+    } catch (err) { log("base balance: " + (err.message || err)); }
+    paintCash(base, solU, solG);
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
   function looksSol(mint) { return mint && !String(mint).startsWith("0x") && String(mint).length > 30; }
@@ -105,22 +155,14 @@
   async function evmBuy(mint, symbol, chain) {
     var c = String(chain || "base").toLowerCase();
     var cid = CHAIN_ID[c] || 8453;
-    var size = Number(document.getElementById("sizeUsd").value || 10);
+    var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var evm = state.evm || "";
-    log("$" + symbol + " is on " + c + ". That spend is EVM USDC, not Solana USDC.");
-    if (!evm) {
-      log("Use the Privy EVM address for Base / Ethereum / BNB. Robinhood needs that chain’s USDC too.");
-      return;
-    }
-    if (!String(mint || "").startsWith("0x")) {
-      log("No EVM mint on this tape line yet.");
-      return;
-    }
+    if (!evm) { log("Sign in first"); return; }
+    if (!String(mint || "").startsWith("0x")) { log("No EVM mint on this line"); return; }
     var url = "https://li.quest/v1/quote?fromChain=" + cid + "&toChain=" + cid + "&fromToken=USDC&toToken=" + mint + "&fromAmount=" + atoms(size) + "&fromAddress=" + evm;
     var q = await fetch(url).then(function (r) { return r.json(); });
     if (q.message || q.error) throw new Error(q.message || q.error || "no EVM route");
-    var out = q.estimate && q.estimate.toAmount;
-    log("Route on " + c + " via " + (q.tool || "DEX") + (out ? (" → " + out) : "") + ". Sign needs the Privy EVM key funded with USDC + gas on that chain.");
+    log("Route on " + c + " via " + (q.tool || "DEX") + ". Fund Base USDC on the Privy EVM key.");
   }
   async function solMint(mint, symbol) {
     if (looksSol(mint)) return mint;
@@ -138,27 +180,34 @@
       try { await evmBuy(mint, symbol, chain); } catch (err) { log("Buy blocked: " + (err.message || err)); }
       return;
     }
-    if (!state.wallet) await ensureWallet();
+    if (!state.wallet) throw new Error("Sign in first");
     await refreshBalance();
-    var size = Number(document.getElementById("sizeUsd").value || 10);
-    if (!(state.cashUsdc >= size)) { log("Need " + size + " Solana USDC, have " + Number(state.cashUsdc || 0).toFixed(2)); return; }
-    if ((await rpc("getBalance", [state.wallet])).value < 5000) { log("Need ~0.02 SOL on this address for network fees"); return; }
+    var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
+    if (!(state.solUsdc >= size) && !(state.cashUsdc >= size)) { log("Need " + size + " USDC"); return; }
     try {
       var outMint = await solMint(mint, symbol);
-      var quote = await fetch(JQ + "?inputMint=" + USDC + "&outputMint=" + outMint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
+      var quote = await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + outMint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
       if (!quote.outAmount) throw new Error(quote.error || "no quote");
-      var dec = Number(quote.outputDecimals || 6);
-      var tokens = Number(quote.outAmount) / Math.pow(10, dec);
-      var entry = tokens ? size / tokens : 0;
-      var swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
-      if (!swap.swapTransaction) throw new Error("no swap tx");
-      var tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(swap.swapTransaction), function (c) { return c.charCodeAt(0); }));
-      var sig = await signAndSend(tx);
-      log("signed $" + symbol + " · " + sig);
-      if (typeof recordPosition === "function") recordPosition({ mint: outMint, symbol: symbol, usdIn: size, tokens: tokens, entry: entry, sig: sig });
-      refreshBalance();
+      log("Jupiter quote for $" + symbol + ". Sign uses Privy Solana.");
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
+
+  window.openSettings = function () {
+    var p = document.getElementById("settingsPanel");
+    var sh = document.getElementById("setShade");
+    if (sh) sh.hidden = false;
+    if (p) p.hidden = false;
+  };
+  window.closeSettings = function () {
+    var sh = document.getElementById("setShade");
+    if (sh) sh.hidden = true;
+  };
+  var setBtn = document.getElementById("settingsBtn");
+  if (setBtn) setBtn.onclick = function () { openSettings(); };
+  var setX = document.getElementById("settingsClose");
+  if (setX) setX.onclick = function () { closeSettings(); };
+  var setSh = document.getElementById("setShade");
+  if (setSh) setSh.onclick = function (e) { if (e.target === setSh) closeSettings(); };
   var top = document.getElementById("refreshBalTop");
   var bot = document.getElementById("refreshBal");
   if (top) top.onclick = function () { refreshBalance(); };
