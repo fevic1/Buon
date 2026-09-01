@@ -9,16 +9,17 @@
     v = String(v || "").trim();
     if (!v) return "";
     if (/^https?:\/\//i.test(v)) return v;
-    if (/^[0-9a-f-]{20,}$/i.test(v)) return "https://mainnet.helius-rpc.com/?api-key=" + v;
+    if (/^[0-9a-f-]{8,}$/i.test(v)) return "https://mainnet.helius-rpc.com/?api-key=" + v;
     return v;
   }
   function loadCreds() {
     var rpc = document.getElementById("rpcUrl");
-    if (rpc && !rpc.value) rpc.value = localStorage.getItem(RPC_KEY) || "";
+    var saved = localStorage.getItem(RPC_KEY) || "";
+    if (rpc) rpc.value = saved || rpc.value || "";
     ["sizeUsd", "minAlert", "minOverlap", "tapeKey"].forEach(function (id) {
       var el = document.getElementById(id);
-      var saved = localStorage.getItem("buon_" + id);
-      if (el && saved && !el.value) el.value = saved;
+      var v = localStorage.getItem("buon_" + id);
+      if (el && v) el.value = v;
     });
     var auto = document.getElementById("autoBuy");
     if (auto) auto.checked = localStorage.getItem("buon_autoBuy") === "1";
@@ -32,12 +33,15 @@
   function saveCreds() {
     var rpc = document.getElementById("rpcUrl");
     if (rpc) {
-      rpc.value = normRpc(rpc.value);
-      if (rpc.value) localStorage.setItem(RPC_KEY, rpc.value);
+      var n = normRpc(rpc.value);
+      if (n) {
+        rpc.value = n;
+        localStorage.setItem(RPC_KEY, n);
+      }
     }
     ["sizeUsd", "minAlert", "minOverlap", "tapeKey"].forEach(function (id) {
       var el = document.getElementById(id);
-      if (el) localStorage.setItem("buon_" + id, el.value || "");
+      if (el && el.value) localStorage.setItem("buon_" + id, el.value);
     });
     var auto = document.getElementById("autoBuy");
     if (auto) localStorage.setItem("buon_autoBuy", auto.checked ? "1" : "0");
@@ -45,20 +49,26 @@
   loadCreds();
   ["rpcUrl", "sizeUsd", "minAlert", "minOverlap", "tapeKey", "autoBuy"].forEach(function (id) {
     var el = document.getElementById(id);
-    if (el) el.addEventListener("change", saveCreds);
+    if (!el) return;
+    el.addEventListener("change", saveCreds);
+    el.addEventListener("input", saveCreds);
   });
-  saveCreds();
   function rpcUrl() {
-    var el = document.getElementById("rpcUrl");
-    return normRpc(el && el.value) || localStorage.getItem(RPC_KEY) || "https://api.mainnet-beta.solana.com";
+    return normRpc(document.getElementById("rpcUrl") && document.getElementById("rpcUrl").value) || localStorage.getItem(RPC_KEY) || "";
   }
   async function rpc(method, params) {
-    var res = await fetch(rpcUrl(), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+    var url = rpcUrl();
+    if (!url) throw new Error("Paste Helius RPC once — it will be saved");
+    var res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
     var data = await res.json();
     if (data.error) throw new Error(data.error.message || ("rpc " + res.status));
     return data.result;
   }
-  window.connection = async function () { return new window.solanaWeb3.Connection(rpcUrl(), "confirmed"); };
+  window.connection = async function () {
+    var url = rpcUrl();
+    if (!url) throw new Error("Paste Helius RPC once — it will be saved");
+    return new window.solanaWeb3.Connection(url, "confirmed");
+  };
   async function usdcOf(owner) {
     var PK = window.solanaWeb3.PublicKey;
     var found = await PK.findProgramAddress([new PK(owner).toBuffer(), new PK(TOKEN).toBuffer(), new PK(USDC).toBuffer()], new PK(ASSOC));
@@ -88,6 +98,18 @@
     }
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
+  function looksSol(mint) { return mint && !String(mint).startsWith("0x") && String(mint).length > 30; }
+  async function solMint(mint, symbol) {
+    if (looksSol(mint)) return mint;
+    var q = String(symbol || "").replace(/^\$/, "");
+    if (!q) throw new Error("no Solana mint");
+    var data = await fetch("https://api.dexscreener.com/latest/dex/search?q=" + encodeURIComponent(q)).then(function (r) { return r.json(); });
+    var want = q.toUpperCase();
+    var pairs = data.pairs || [];
+    var hit = pairs.find(function (p) { return p.chainId === "solana" && String((p.baseToken || {}).symbol || "").toUpperCase() === want; }) || pairs.find(function (p) { return p.chainId === "solana"; });
+    if (hit && hit.baseToken && hit.baseToken.address) return hit.baseToken.address;
+    throw new Error("no Solana mint for $" + q);
+  }
   window.proposeBuy = window.deskBuy = async function (mint, symbol) {
     if (!state.wallet) await ensureWallet();
     await refreshBalance();
@@ -95,17 +117,18 @@
     if (!(state.cashUsdc >= size)) { log("Need " + size + " USDC, have " + Number(state.cashUsdc || 0).toFixed(2)); return; }
     if ((await rpc("getBalance", [state.wallet])).value < 5000) { log("Need ~0.02 SOL on this address for network fees"); return; }
     try {
-      if (String(mint || "").startsWith("0x")) throw new Error("no Solana mint");
-      var quote = await fetch(JQ + "?inputMint=" + USDC + "&outputMint=" + mint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
+      var outMint = await solMint(mint, symbol);
+      var quote = await fetch(JQ + "?inputMint=" + USDC + "&outputMint=" + outMint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
       if (!quote.outAmount) throw new Error(quote.error || "no quote");
-      var tokens = Number(quote.outAmount) / 1e6;
+      var dec = Number(quote.outputDecimals || 6);
+      var tokens = Number(quote.outAmount) / Math.pow(10, dec);
       var entry = tokens ? size / tokens : 0;
       var swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
       if (!swap.swapTransaction) throw new Error("no swap tx");
       var tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(swap.swapTransaction), function (c) { return c.charCodeAt(0); }));
       var sig = await signAndSend(tx);
       log("signed $" + symbol + " · " + sig);
-      if (typeof recordPosition === "function") recordPosition({ mint: mint, symbol: symbol, usdIn: size, tokens: tokens, entry: entry, sig: sig });
+      if (typeof recordPosition === "function") recordPosition({ mint: outMint, symbol: symbol, usdIn: size, tokens: tokens, entry: entry, sig: sig });
       refreshBalance();
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
