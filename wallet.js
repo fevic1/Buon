@@ -33,6 +33,14 @@
         "</div>";
     }).join("");
   }
+  function netSelect(id) {
+    return "<label>Network<select id=\"" + id + "\">" +
+      CHAINS.map(function (c) {
+        var sel = c.id === "base" ? " selected" : "";
+        return "<option value=\"" + c.id + "\"" + sel + ">" + c.name + " USDC</option>";
+      }).join("") +
+      "</select></label>";
+  }
   window.openCashMenu = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
@@ -51,21 +59,29 @@
   window.openDeposit = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">One pool. Prefer Base USDC.</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">Send USDC only.</p>" +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">Pick the network you send from</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      "<p class=\"fine\">USDC only. Base lands in the pool immediately. Other networks wait on a sweep.</p>" +
       chainRows()
     );
   };
   window.openWithdraw = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">Out of the Base pool</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<label>Destination<input id=\"wdDest\" placeholder=\"your address\" autocomplete=\"off\" /></label>" +
-      "<label>Amount USDC<input id=\"wdAmt\" type=\"number\" min=\"1\" value=\"10\" /></label>" +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">From the Base pool to the network you pick</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      netSelect("wdNet") +
+      "<label>Destination<input id=\"wdDest\" placeholder=\"address on that network\" autocomplete=\"off\" /></label>" +
+      "<label>Amount USDC<input id=\"wdAmt\" type=\"number\" min=\"1\" step=\"0.01\" value=\"10\" /></label>" +
+      "<p class=\"fine\">Base is a USDC transfer. Any other network is a hop out of the pool.</p>" +
       "<button class=\"primary slim\" type=\"button\" id=\"wdGo\">Request withdraw</button>"
     );
     var go = document.getElementById("wdGo");
-    if (go) go.onclick = function () { log("Withdraw from pool queued"); };
+    if (go) go.onclick = function () {
+      var net = ((document.getElementById("wdNet") || {}).value || "base");
+      var dest = ((document.getElementById("wdDest") || {}).value || "").trim();
+      var amt = ((document.getElementById("wdAmt") || {}).value || "");
+      if (!dest) { log("Withdraw needs a destination"); return; }
+      log("Withdraw " + amt + " USDC to " + net + " → " + dest);
+    };
   };
   window.drawPrivyAccount = function (info) {
     info = info || {};
