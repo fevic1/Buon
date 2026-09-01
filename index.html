@@ -4,13 +4,87 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=30" />
+  <link rel="stylesheet" href="./styles.css?v=31" />
+  <link rel="stylesheet" href="./pulse.css?v=31" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="sky"></div>
-  <div id="root"></div>
+  <header class="nav">
+    <div class="brand"><span class="word">buon</span><span class="badge">desk</span></div>
+    <nav class="tabs" id="tabs">
+      <button class="tab on" data-view="feed" type="button">feed</button>
+      <button class="tab" data-view="leaders" type="button">leaderboard</button>
+      <button class="tab" data-view="book" type="button">overlap</button>
+    </nav>
+    <div class="nav-right">
+      <span class="pill" id="clock">--:--:--</span>
+      <button class="ghost" id="disconnectBtn" type="button" hidden>Log out</button>
+      <button class="primary" id="connectBtn" type="button">Sign in</button>
+    </div>
+  </header>
+  <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
+  <main class="shell">
+    <section class="cash-bar card" id="cashBar">
+      <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Sign in to show wallets</div></div>
+      <div>
+        <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
+      </div>
+    </section>
+    <section class="hero-strip">
+      <div>
+        <p class="kicker">ranked tape</p>
+        <h1>where the tape is ranked, not guessed.</h1>
+        <p class="sub">Leaderboard, overlap, trader books, and token cards stay on this desk.</p>
+      </div>
+      <div class="status-pills">
+        <span class="pill" id="apiStatus">tape …</span>
+        <span class="pill" id="walletStatus">wallet off</span>
+        <span class="pill" id="botStatus">bot idle</span>
+      </div>
+    </section>
+    <section class="grid">
+      <aside class="rail">
+        <div class="card">
+          <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
+          <label>Solana RPC URL<input id="rpcUrl" placeholder="https://mainnet.helius-rpc.com/?api-key=…" autocomplete="off" /></label>
+          <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
+          <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
+          <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
+          <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
+          <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
+          <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
+          <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
+          <div class="wallet-box" id="walletBox">
+            <div class="w-addr" id="walletAddr">not signed in</div>
+            <div class="bals" id="walletBals"></div>
+            <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
+      </aside>
+      <section class="stage">
+        <div id="view-feed" class="view on"><div class="card-h tight"><h2>live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
+        <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h legends</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
+        <div id="view-book" class="view"><div class="card-h tight"><h2>ranked book</h2><span class="quiet">overlap</span></div><div id="book" class="book"></div></div>
+      </section>
+      <aside class="rail">
+        <div class="card"><div class="card-h"><h2>positions</h2></div><div id="posList" class="stack muted">No buys yet</div></div>
+        <div class="card"><div class="card-h"><h2>potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
+        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="log" class="log muted">Desk online.</div></div>
+      </aside>
+    </section>
+  </main>
+  <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
+  <div class="toast" id="toast"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script type="module" src="./privy-app.js?v=30"></script>
+  <script src="./app.js?v=31"></script>
+  <script src="./wallet.js?v=31"></script>
+  <script src="./privy.js?v=31"></script>
+  <script src="./desk.js?v=31"></script>
+  <script src="./positions.js?v=31"></script>
+  <script src="./live.js?v=31"></script>
+  <script src="./ui.js?v=31"></script>
 </body>
 </html>
