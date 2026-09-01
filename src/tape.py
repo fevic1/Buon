@@ -86,7 +86,7 @@ class TapeClient:
 def market_page(chain: str | None, address: str | None) -> str | None:
     if not address:
         return None
-    network = (chain || "solana").lower()
+    network = (chain or "solana").lower()
     aliases = {
         "sol": "solana",
         "eth": "ethereum",
