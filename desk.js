@@ -22,6 +22,12 @@
     });
     var auto = document.getElementById("autoBuy");
     if (auto) auto.checked = localStorage.getItem("buon_autoBuy") === "1";
+    var last = Number(localStorage.getItem("buon_last_usdc") || 0);
+    if (last) {
+      state.cashUsdc = last;
+      var amt = document.getElementById("cashAmt");
+      if (amt) amt.textContent = last.toFixed(2) + " USDC";
+    }
   }
   function saveCreds() {
     var rpc = document.getElementById("rpcUrl");
@@ -60,21 +66,29 @@
     var ta = acc && acc.value && acc.value.data && acc.value.data.parsed && acc.value.data.parsed.info && acc.value.data.parsed.info.tokenAmount;
     return Number((ta && ta.uiAmount) || 0);
   }
+  function paintCash(usdc, sol) {
+    state.cashUsdc = usdc;
+    localStorage.setItem("buon_last_usdc", String(usdc));
+    document.getElementById("cashAmt").textContent = usdc.toFixed(2) + " USDC";
+    document.getElementById("gasAmt").textContent = "SOL gas " + Number(sol || 0).toFixed(4);
+    document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
+    document.getElementById("walletBals").innerHTML = "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + usdc.toFixed(2) + "</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(sol || 0).toFixed(4) + "</span></div>";
+  }
   window.refreshBalance = window.deskRefresh = async function () {
     if (!state.wallet) return;
     try {
       var lamports = await rpc("getBalance", [state.wallet]);
       var sol = Number((lamports && lamports.value) || 0) / 1e9;
       var usdc = await usdcOf(state.wallet);
-      state.cashUsdc = usdc;
-      document.getElementById("cashAmt").textContent = usdc.toFixed(2) + " USDC";
-      document.getElementById("gasAmt").textContent = "SOL gas " + sol.toFixed(4);
-      document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
-      document.getElementById("walletBals").innerHTML = "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + usdc.toFixed(2) + "</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
-    } catch (err) { log("balance: " + (err.message || err)); }
+      paintCash(usdc, sol);
+    } catch (err) {
+      log("balance: " + (err.message || err));
+      var last = Number(localStorage.getItem("buon_last_usdc") || 0);
+      if (last) paintCash(last, 0);
+    }
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
-  window.proposeBuy = async function (mint, symbol) {
+  window.proposeBuy = window.deskBuy = async function (mint, symbol) {
     if (!state.wallet) await ensureWallet();
     await refreshBalance();
     var size = Number(document.getElementById("sizeUsd").value || 10);
