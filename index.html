@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Buon — leader tape</title>
-  <link rel="stylesheet" href="./styles.css?v=4" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -33,7 +33,7 @@
       <div>
         <p class="kicker">buon desk · USDC cash</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Buy spends Solana USDC. Activity prints why if Phantom does not open.</p>
+        <p class="sub">Buy spends Solana USDC. If Phantom does not open, activity says why.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -49,7 +49,7 @@
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
           <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <p class="fine">0.001 SOL often cannot pay rent for a new token account. Keep a bit more gas.</p>
+          <p class="fine">Keep ~0.02 SOL for rent. 0.001 often fails new token accounts.</p>
           <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
             <div class="w-addr" id="walletAddr">Addresses on cash bar</div>
@@ -73,7 +73,7 @@
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <footer class="foot">Click Buy and read activity.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=4"></script>
+  <script src="./app.js?v=5"></script>
   <script>
     (function () {
       const ATA = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -81,20 +81,43 @@
       const USDCM = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
       const JQ = "https://lite-api.jup.ag/swap/v1/quote";
       const JS = "https://lite-api.jup.ag/swap/v1/swap";
+      function phantom() { return window.solana; }
+      function setConnected(on) {
+        const btn = document.getElementById("connectBtn");
+        if (btn) btn.textContent = on ? "Connected" : "Connect wallet";
+      }
       function drawAddrs() {
         const list = document.getElementById("addrList");
         if (!list) return;
-        if (!state.wallet) { list.innerHTML = "<div class=\"meta\">Connect Phantom</div>"; return; }
+        if (!state.wallet) { list.innerHTML = "<div class=\"meta\">Connect Phantom to load USDC cash</div>"; return; }
         const row = function (label, value) {
           return value ? "<div class=\"addr-row\"><span class=\"meta\">" + label + "</span><code>" + value + "</code><button class=\"ghost\" data-copy=\"" + value + "\" type=\"button\">Copy</button></div>" : "";
         };
         list.innerHTML = row("SOL", state.wallet) + row("EVM", state.evm);
       }
+      window.ensureWallet = async function () {
+        const p = phantom();
+        if (!p || !p.isPhantom) {
+          window.open("https://phantom.app/", "_blank");
+          throw new Error("Install Phantom");
+        }
+        const res = await p.connect();
+        state.wallet = res.publicKey.toString();
+        try {
+          const eth = window.phantom && window.phantom.ethereum;
+          if (eth && eth.request) {
+            const acc = await eth.request({ method: "eth_requestAccounts" });
+            state.evm = acc && acc[0];
+          }
+        } catch (e) {}
+        setConnected(true);
+        drawAddrs();
+        await refreshBalance();
+        return state.wallet;
+      };
       window.refreshBalance = async function () {
         if (!state.wallet || !window.solanaWeb3) return;
         drawAddrs();
-        const cash = document.getElementById("cashAmt");
-        const gas = document.getElementById("gasAmt");
         try {
           const conn = await connection();
           const pk = new window.solanaWeb3.PublicKey(state.wallet);
@@ -106,32 +129,32 @@
           let usdc = 0;
           try { usdc = Number((await conn.getTokenAccountBalance(ata)).value.uiAmount || 0); } catch (e) {}
           state.cashUsdc = usdc;
-          if (cash) cash.textContent = usdc.toFixed(2) + " USDC";
-          if (gas) gas.textContent = "SOL gas " + sol.toFixed(4);
+          document.getElementById("cashAmt").textContent = usdc.toFixed(2) + " USDC";
+          document.getElementById("gasAmt").textContent = "SOL gas " + sol.toFixed(4);
           document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
-          const box = document.getElementById("walletBals");
-          if (box) box.innerHTML = "<div class=\"bal-row\"><span>cash</span><span class=\"amt\">" + usdc.toFixed(2) + " USDC</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
+          document.getElementById("walletBals").innerHTML = "<div class=\"bal-row\"><span>cash</span><span class=\"amt\">" + usdc.toFixed(2) + " USDC</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
         } catch (err) { log(err.message || String(err)); }
       };
       function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
-      function isSol(chain, mint) {
-        const c = String(chain || "").toLowerCase();
-        return mint && !String(mint).startsWith("0x") && (!c || c === "sol" || c === "solana");
-      }
+      function looksSol(mint) { return mint && !String(mint).startsWith("0x") && String(mint).length > 30; }
       async function solMint(chain, mint, symbol) {
-        if (isSol(chain, mint)) return mint;
-        if (mint && !String(mint).startsWith("0x") && String(mint).length > 30) return mint;
+        const c = String(chain || "").toLowerCase();
+        if (looksSol(mint) && (!c || c === "sol" || c === "solana")) return mint;
+        if (looksSol(mint)) return mint;
         const data = await fetch("https://api.dexscreener.com/latest/dex/search?q=" + encodeURIComponent(String(symbol || "").replace(/^\$/, ""))).then(function (r) { return r.json(); });
-        const pairs = data.pairs || [];
         const want = String(symbol || "").replace(/^\$/, "").toUpperCase();
+        const pairs = data.pairs || [];
         const hit = pairs.find(function (p) { return p.chainId === "solana" && String((p.baseToken || {}).symbol || "").toUpperCase() === want; }) || pairs.find(function (p) { return p.chainId === "solana"; });
         if (hit && hit.baseToken && hit.baseToken.address) return hit.baseToken.address;
         throw new Error("no Solana USDC market for $" + (symbol || "?"));
       }
       window.proposeBuy = async function (mint, symbol, fromAuto, chain) {
         log("Buy $" + (symbol || "?") + " · " + (chain || "?"));
-        if (!state.wallet) { log("Connect Phantom first"); return; }
+        try {
+          if (!state.wallet) await ensureWallet();
+        } catch (e) { log(e.message || String(e)); return; }
         const size = Number(document.getElementById("sizeUsd").value || 10);
+        if (!state.cashUsdc) await refreshBalance();
         if (size > (state.cashUsdc || 0)) { log("Need " + size + " USDC, have " + Number(state.cashUsdc || 0).toFixed(2)); return; }
         document.getElementById("botStatus").textContent = "quoting USDC";
         try {
@@ -142,32 +165,42 @@
           const swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
           if (!swap.swapTransaction) throw new Error(swap.error || swap.message || "no swap tx");
           const tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(swap.swapTransaction), function (c) { return c.charCodeAt(0); }));
-          let sig;
-          try { sig = (await window.solana.signAndSendTransaction(tx)).signature; }
-          catch (e1) {
-            const signed = await window.solana.signTransaction(tx);
-            sig = await (await connection()).sendRawTransaction(signed.serialize());
-          }
-          log("signed $" + symbol + " with " + size + " USDC · " + sig);
+          if (!window.solana || !window.solana.signAndSendTransaction) throw new Error("Phantom signer missing");
+          const sent = await window.solana.signAndSendTransaction(tx);
+          log("signed $" + symbol + " with " + size + " USDC · " + (sent.signature || sent));
           document.getElementById("botStatus").textContent = "filled / sent";
           refreshBalance();
         } catch (err) {
           const msg = String(err.message || err);
-          if (/insufficient|lamport|0x1/i.test(msg)) log("Need more SOL gas for token-account rent (you have ~0.001)");
+          if (/User rejected|denied|cancelled/i.test(msg)) log("Phantom rejected the swap");
+          else if (/insufficient|lamport|0x1/i.test(msg)) log("Need more SOL gas for token-account rent");
           else log("Buy blocked: " + msg);
           document.getElementById("botStatus").textContent = "idle";
         }
       };
       document.addEventListener("click", function (ev) {
         const btn = ev.target.closest("button[data-mint], button.buy");
-        if (!btn) return;
+        if (!btn || btn.id === "connectBtn") return;
         ev.preventDefault();
         ev.stopPropagation();
-        if (btn.dataset.mint) proposeBuy(btn.dataset.mint, btn.dataset.symbol, false, btn.dataset.chain);
+        if (btn.dataset.mint) proposeBuy(btn.dataset.mint, btn.dataset.symbol || btn.textContent, false, btn.dataset.chain);
         else log("That print has no mint yet");
       }, true);
-      document.getElementById("refreshBalTop").onclick = function () { refreshBalance().catch(function (e) { log(e.message); }); };
-      document.getElementById("refreshBal").onclick = function () { refreshBalance().catch(function (e) { log(e.message); }); };
+      document.getElementById("connectBtn").onclick = function () {
+        ensureWallet().then(function () { log("Phantom ready"); }).catch(function (e) { log(e.message); setConnected(false); });
+      };
+      document.getElementById("refreshBalTop").onclick = function () { (state.wallet ? refreshBalance() : ensureWallet()).catch(function (e) { log(e.message); }); };
+      document.getElementById("refreshBal").onclick = function () { (state.wallet ? refreshBalance() : ensureWallet()).catch(function (e) { log(e.message); }); };
+      setTimeout(function () {
+        const p = phantom();
+        if (!p || !p.isPhantom) return;
+        p.connect({ onlyIfTrusted: true }).then(function (res) {
+          state.wallet = res.publicKey.toString();
+          setConnected(true);
+          drawAddrs();
+          return refreshBalance();
+        }).catch(function () { setConnected(false); });
+      }, 400);
     })();
   </script>
 </body>
