@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Buon — leader tape</title>
-  <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=8" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -19,6 +19,7 @@
     </nav>
     <div class="nav-right">
       <span class="pill" id="clock">--:--:--</span>
+      <button class="ghost" id="disconnectBtn" type="button" hidden>Disconnect</button>
       <button class="primary" id="connectBtn">Connect wallet</button>
     </div>
   </header>
@@ -33,7 +34,7 @@
       <div>
         <p class="kicker">buon desk · official USDC mint</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Cash updates on connect, tab focus, and every 12s. No hard refresh.</p>
+        <p class="sub">Disconnect is next to Connect. Cash uses official Solana USDC.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -73,8 +74,8 @@
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <footer class="foot">Official Solana USDC only for buys.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=7"></script>
-  <script src="./desk.js?v=7"></script>
-  <script src="./live.js?v=7"></script>
+  <script src="./app.js?v=8"></script>
+  <script src="./desk.js?v=8"></script>
+  <script src="./live.js?v=8"></script>
 </body>
 </html>
