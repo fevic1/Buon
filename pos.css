@@ -1,0 +1,14 @@
+.pos-card {
+  padding: 12px;
+  border-radius: 14px;
+  background: #0d1324;
+  border: 1px solid var(--line);
+}
+.pos-card.up { border-color: rgba(0, 212, 170, 0.45); background: rgba(0, 212, 170, 0.06); }
+.pos-card.down { border-color: rgba(255, 107, 107, 0.4); background: rgba(255, 107, 107, 0.06); }
+.pos-card .pos-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pos-card .pos-pnl { font-family: var(--mono); font-weight: 700; }
+.pos-card.up .pos-pnl { color: var(--teal); }
+.pos-card.down .pos-pnl { color: var(--red); }
+.pos-card .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.pos-card .acts .wide { grid-column: 1 / -1; }
