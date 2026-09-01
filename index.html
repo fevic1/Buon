@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buon — leader tape</title>
+  <meta name="description" content="Buon leader tape. Connect a wallet. Rank overlapping coins. Sign your own swaps." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="sky"></div>
+  <header class="nav">
+    <div class="brand">
+      <span class="word">buon</span>
+      <span class="badge">desk</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab on" data-view="feed">feed</button>
+      <button class="tab" data-view="leaders">leaderboard</button>
+      <button class="tab" data-view="book">overlap</button>
+    </nav>
+    <div class="nav-right">
+      <button class="primary" id="connectBtn">Connect wallet</button>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="hero-strip">
+      <div>
+        <p class="kicker">buon desk · ranked wallets · signed swaps</p>
+        <h1>where the tape is ranked, not guessed.</h1>
+        <p class="sub">Live leader flow. Identical coins across top wallets. You click. Your wallet signs.</p>
+      </div>
+      <div class="status-pills">
+        <span class="pill" id="apiStatus">tape …</span>
+        <span class="pill" id="walletStatus">wallet off</span>
+        <span class="pill" id="botStatus">bot idle</span>
+      </div>
+    </section>
+    <section class="grid">
+      <aside class="rail">
+        <div class="card">
+          <div class="card-h">
+            <h2>desk</h2>
+            <span class="dot" id="liveDot"></span>
+          </div>
+          <label>Size per buy (USD)
+            <input type="number" id="sizeUsd" min="1" max="500" value="20" />
+          </label>
+          <label>Min alert (USD)
+            <input type="number" id="minAlert" min="0" max="100000" value="250" />
+          </label>
+          <label>Overlap to call it identical
+            <input type="number" id="minOverlap" min="2" max="15" value="3" />
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="autoBuy" />
+            <span>Propose Solana buys on crowded / potential</span>
+          </label>
+          <p class="fine">Auto never bypasses your wallet. Phantom still pops for every swap.</p>
+          <div class="wallet-box" id="walletBox">Not connected</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>identical coins</h2></div>
+          <div id="crowdedList" class="stack muted">Waiting for tape…</div>
+        </div>
+      </aside>
+      <section class="stage">
+        <div id="view-feed" class="view on">
+          <div class="card-h tight">
+            <h2>live feed</h2>
+            <span class="quiet" id="feedMeta">connecting</span>
+          </div>
+          <div id="feed" class="feed"></div>
+        </div>
+        <div id="view-leaders" class="view">
+          <div class="card-h tight">
+            <h2>24h legends</h2>
+            <span class="quiet">ranked PnL</span>
+          </div>
+          <div id="leaders" class="leaders"></div>
+        </div>
+        <div id="view-book" class="view">
+          <div class="card-h tight">
+            <h2>ranked book</h2>
+            <span class="quiet">overlap + buy flow − sell flow</span>
+          </div>
+          <div id="book" class="book"></div>
+        </div>
+      </section>
+      <aside class="rail">
+        <div class="card">
+          <div class="card-h"><h2>potential</h2></div>
+          <div id="potentialList" class="stack muted">No early crowd yet</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>activity</h2></div>
+          <div id="log" class="log muted">Desk booted.</div>
+        </div>
+      </aside>
+    </section>
+  </main>
+  <footer class="foot">
+    Buon reads a public social-data tape and can ask your own wallet to sign a Jupiter swap. It does not custody funds.
+  </footer>
+  <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
