@@ -4,19 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon — leader tape</title>
-  <meta name="description" content="Buon leader tape. Connect a wallet. Rank overlapping coins. Sign your own swaps." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="sky"></div>
   <header class="nav">
-    <div class="brand">
-      <span class="word">buon</span>
-      <span class="badge">desk</span>
-    </div>
+    <div class="brand"><span class="word">buon</span><span class="badge">desk</span></div>
     <nav class="tabs" id="tabs">
       <button class="tab on" data-view="feed">feed</button>
       <button class="tab" data-view="leaders">leaderboard</button>
@@ -27,15 +21,24 @@
       <button class="primary" id="connectBtn">Connect wallet</button>
     </div>
   </header>
-  <div class="ticker-wrap">
-    <div class="ticker" id="ticker">waiting on live tape…</div>
-  </div>
+  <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
   <main class="shell">
+    <section class="cash-bar card" id="cashBar">
+      <div>
+        <p class="kicker">cash</p>
+        <div class="cash-amt" id="cashAmt">— USDC</div>
+        <div class="meta" id="gasAmt">SOL gas —</div>
+      </div>
+      <div class="addr-list" id="addrList">
+        <div class="meta">Connect Phantom to load USDC cash</div>
+      </div>
+      <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
+    </section>
     <section class="hero-strip">
       <div>
-        <p class="kicker">buon desk · ranked wallets · USDC cash</p>
+        <p class="kicker">buon desk · USDC cash</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">One cash unit: USDC. Auto only on Solana, Base, BSC when a public route exists.</p>
+        <p class="sub">Cash is USDC on Solana. SOL is only gas. Copy full addresses from the bar above.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -46,101 +49,89 @@
     <section class="grid">
       <aside class="rail">
         <div class="card">
-          <div class="card-h">
-            <h2>desk</h2>
-            <span class="dot" id="liveDot"></span>
-          </div>
-          <label>Size per buy (USDC)
-            <input type="number" id="sizeUsd" min="1" max="500" value="20" />
-          </label>
-          <label>Min alert (USD)
-            <input type="number" id="minAlert" min="0" max="100000" value="250" />
-          </label>
-          <label>Overlap to call it identical
-            <input type="number" id="minOverlap" min="2" max="15" value="3" />
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="autoBuy" />
-            <span>Auto-propose USDC on Solana, Base, BSC only</span>
-          </label>
-          <p class="fine">Cash is USDC. Auto fires only on Solana, Base, and BSC when you hold USDC. Phantom still signs.</p>
-          <label>Tape key (optional, for full books)
-            <input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" />
-          </label>
+          <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
+          <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="20" /></label>
+          <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
+          <label>Overlap to call it identical<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
+          <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto-propose USDC on Solana, Base, BSC only</span></label>
+          <p class="fine">Buys spend USDC cash. Phantom still signs.</p>
+          <label>Tape key (optional, for full books)<input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">Not connected</div>
+            <div class="w-addr" id="walletAddr">Addresses show in cash bar above</div>
             <div class="bals" id="walletBals"></div>
             <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
           </div>
         </div>
-        <div class="card">
-          <div class="card-h"><h2>identical coins</h2></div>
-          <div id="crowdedList" class="stack muted">Waiting for tape…</div>
-        </div>
+        <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
       </aside>
       <section class="stage">
-        <div id="view-feed" class="view on">
-          <div class="card-h tight">
-            <h2>live feed</h2>
-            <span class="quiet" id="feedMeta">connecting</span>
-          </div>
-          <div id="feed" class="feed"></div>
-        </div>
-        <div id="view-leaders" class="view">
-          <div class="card-h tight">
-            <h2>24h legends</h2>
-            <span class="quiet">ranked PnL</span>
-          </div>
-          <div id="leaders" class="leaders"></div>
-        </div>
-        <div id="view-book" class="view">
-          <div class="card-h tight">
-            <h2>ranked book</h2>
-            <span class="quiet">overlap + buy flow − sell flow</span>
-          </div>
-          <div id="book" class="book"></div>
-        </div>
+        <div id="view-feed" class="view on"><div class="card-h tight"><h2>live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
+        <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h legends</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
+        <div id="view-book" class="view"><div class="card-h tight"><h2>ranked book</h2><span class="quiet">overlap + buy flow</span></div><div id="book" class="book"></div></div>
       </section>
       <aside class="rail">
-        <div class="card">
-          <div class="card-h"><h2>potential</h2></div>
-          <div id="potentialList" class="stack muted">No early crowd yet</div>
-        </div>
-        <div class="card">
-          <div class="card-h"><h2>activity</h2></div>
-          <div id="log" class="log muted">Desk booted.</div>
-        </div>
+        <div class="card"><div class="card-h"><h2>potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
+        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="log" class="log muted">Desk booted.</div></div>
       </aside>
     </section>
   </main>
-  <div class="shade" id="shade" hidden>
-    <aside class="sheet" id="sheet"></aside>
-  </div>
-  <footer class="foot">
-    Buys spend USDC cash. Auto stays on Solana, Base, BSC. Buon does not custody funds.
-  </footer>
+  <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
+  <footer class="foot">Cash is USDC. Copy full SOL and EVM addresses from the top bar.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
   <script src="./app.js"></script>
   <script>
     (function () {
-      if (typeof proposeBuy !== "function") return;
-      const allow = { solana: 1, sol: 1, base: 1, bsc: 1, bnb: 1, binance: 1 };
-      const seen = new Map();
-      const inner = proposeBuy;
-      proposeBuy = function (mint, symbol, fromAuto, chain) {
-        if (fromAuto) {
-          const c = String(chain || "solana").toLowerCase();
-          if (!allow[c]) { log("auto skip $" + symbol + " · " + c); return; }
-          if (!state.wallet) { log("auto armed · connect and fund USDC"); return; }
-          const size = Number(document.getElementById("sizeUsd").value || 20);
-          if (!state.cashUsdc || state.cashUsdc < size) { log("auto paused · need USDC cash"); return; }
-          const last = seen.get(mint) || 0;
-          if (Date.now() - last < 10 * 60 * 1000) return;
-          seen.set(mint, Date.now());
-          log("auto " + c + " $" + symbol);
+      const ATA = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+      const TP = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+      const USDCM = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+      function drawAddrs() {
+        const list = document.getElementById("addrList");
+        if (!list) return;
+        if (!state.wallet) { list.innerHTML = "<div class=\"meta\">Connect Phantom to load USDC cash</div>"; return; }
+        const row = (label, value) => value ? "<div class=\"addr-row\"><span class=\"meta\">" + label + "</span><code>" + value + "</code><button class=\"ghost\" data-copy=\"" + value + "\" type=\"button\">Copy</button></div>" : "";
+        list.innerHTML = row("SOL", state.wallet) + row("EVM", state.evm);
+      }
+      window.refreshBalance = async function () {
+        if (!state.wallet || !window.solanaWeb3) return;
+        drawAddrs();
+        const cash = document.getElementById("cashAmt");
+        const gas = document.getElementById("gasAmt");
+        const box = document.getElementById("walletBals");
+        if (cash) cash.textContent = "reading USDC…";
+        try {
+          const conn = await connection();
+          const pk = new window.solanaWeb3.PublicKey(state.wallet);
+          const sol = (await conn.getBalance(pk)) / 1e9;
+          const ata = window.solanaWeb3.PublicKey.findProgramAddressSync(
+            [pk.toBuffer(), new window.solanaWeb3.PublicKey(TP).toBuffer(), new window.solanaWeb3.PublicKey(USDCM).toBuffer()],
+            new window.solanaWeb3.PublicKey(ATA)
+          )[0];
+          let usdc = 0;
+          try {
+            const bal = await conn.getTokenAccountBalance(ata);
+            usdc = Number(bal && bal.value && bal.value.uiAmount || 0);
+          } catch (_) {
+            const acc = await conn.getAccountInfo(ata);
+            if (acc && acc.data) {
+              const raw = acc.data instanceof Uint8Array ? acc.data : new Uint8Array(acc.data);
+              if (raw.length >= 72) {
+                const view = new DataView(raw.buffer, raw.byteOffset + 64, 8);
+                usdc = (view.getUint32(0, true) + view.getUint32(4, true) * 4294967296) / 1e6;
+              }
+            }
+          }
+          state.cashUsdc = usdc;
+          if (cash) cash.textContent = usdc.toFixed(2) + " USDC";
+          if (gas) gas.textContent = "SOL gas " + sol.toFixed(4);
+          if (box) box.innerHTML = "<div class=\"bal-row\"><span>cash</span><span class=\"amt\">" + usdc.toFixed(2) + " USDC</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
+          document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
+        } catch (err) {
+          if (cash) cash.textContent = "USDC error";
+          log(err.message || String(err));
         }
-        return inner(mint, symbol, fromAuto, chain);
       };
+      const top = document.getElementById("refreshBalTop");
+      if (top) top.onclick = function () { refreshBalance().catch(function (e) { log(e.message); }); };
     })();
   </script>
 </body>
