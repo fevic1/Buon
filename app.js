@@ -3,7 +3,7 @@ const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const JUP_QUOTE = "https://lite-api.jup.ag/swap/v1/quote";
 const JUP_SWAP = "https://lite-api.jup.ag/swap/v1/swap";
-const RPC = "https://solana-rpc.publicnode.com";
+const RPCS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
 const API = atob("aHR0cHM6Ly9hcGkuZm9tb2FwaS5pbw==");
 const TAPE_WS = atob("d3NzOi8vYXBpLmZvbW9hcGkuaW8vd3MvYWxlcnRz");
 const MARKET = atob("aHR0cHM6Ly9mb21vLmZhbWlseQ==");
@@ -11,10 +11,12 @@ const MARKET = atob("aHR0cHM6Ly9mb21vLmZhbWlseQ==");
 const state = {
   leaders: new Map(),
   tokens: new Map(),
+  traderTape: new Map(),
   wallet: null,
   busy: false,
   seen: new Set(),
   solPrice: 0,
+  key: localStorage.getItem("buon_key") || "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -66,6 +68,10 @@ function ago(ts) {
   return `${Math.floor(s / 3600)}h`;
 }
 
+function authHeaders() {
+  return state.key ? { authorization: `Bearer ${state.key}` } : {};
+}
+
 function face(handle) {
   const src = state.leaders.get(handle)?.avatar;
   const ini = initials(handle);
@@ -97,6 +103,15 @@ function bookOf(symbol, address, chain) {
   return book;
 }
 
+function findBook(symbol, address) {
+  if (address && state.tokens.has(tokenKey(symbol, address))) return state.tokens.get(tokenKey(symbol, address));
+  const want = (symbol || "").replace(/^\$/, "").toUpperCase();
+  for (const book of state.tokens.values()) {
+    if (book.symbol.toUpperCase() === want) return book;
+  }
+  return bookOf(symbol, address);
+}
+
 function score(book) {
   let rankW = 0;
   for (const handle of book.holders) {
@@ -124,10 +139,28 @@ function ranked(limit = 20) {
     .slice(0, limit);
 }
 
+function rememberTrader(alert) {
+  const handle = String(alert.trader || "").replace(/^@/, "");
+  if (!handle) return;
+  if (!state.traderTape.has(handle)) state.traderTape.set(handle, []);
+  const list = state.traderTape.get(handle);
+  list.unshift({
+    type: (alert.type || "").toLowerCase(),
+    token: (alert.token || "").replace(/^\$/, ""),
+    address: alert.tokenAddress,
+    chain: alert.chain,
+    usd: Number(alert.usdValue || 0),
+    ts: alert.ts,
+    text: alert.text || "",
+  });
+  if (list.length > 40) list.length = 40;
+}
+
 function renderFeed(alert, prepend = true) {
   const feed = $("feed");
   const row = document.createElement("article");
-  row.className = "row";
+  row.className = "row clickable";
+  row.dataset.trader = alert.trader || "";
   const type = (alert.type || "trade").toLowerCase();
   const canSwap = (alert.chain || "").toLowerCase() === "solana" && alert.tokenAddress && !alert.tokenAddress.startsWith("0x");
   row.innerHTML = `
@@ -137,7 +170,9 @@ function renderFeed(alert, prepend = true) {
       <div class="meta">${coin(alert.chain, alert.tokenAddress, alert.token)} · ${alert.chain || ""} · ${usd(alert.usdValue)} · ${ago(alert.ts)}</div>
     </div>
     <div>
-      ${canSwap ? `<button class="buy" data-mint="${alert.tokenAddress}" data-symbol="${alert.token || ""}">Buy</button>` : `<button class="ghost buy" data-open="${marketUrl(alert.chain, alert.tokenAddress)}">Open</button>`}
+      ${canSwap
+        ? `<button class="buy" data-mint="${alert.tokenAddress}" data-symbol="${alert.token || ""}">Buy</button>`
+        : `<button class="ghost buy" data-token="${alert.token || ""}" data-address="${alert.tokenAddress || ""}" data-chain="${alert.chain || ""}">Open</button>`}
     </div>`;
   if (prepend) feed.prepend(row);
   else feed.append(row);
@@ -148,7 +183,7 @@ function renderLeaders() {
   $("leaders").innerHTML = [...state.leaders.values()]
     .sort((a, b) => a.rank - b.rank)
     .map((l) => `
-      <article class="row">
+      <article class="row clickable" data-trader="${l.handle}">
         ${face(l.handle)}
         <div>
           <div class="who">#${l.rank} @${l.handle} <span class="meta">${l.name && l.name !== l.handle ? l.name : ""}</span></div>
@@ -159,18 +194,26 @@ function renderLeaders() {
     .join("");
 }
 
+function tokenCard(r) {
+  return `
+    <div class="mini clickable" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}">
+      <b>${coin(r.chain, r.address, r.symbol)}</b>
+      <span class="meta">${r.action} · overlap ${r.holders?.size || r.overlap || 0} · net ${usd((r.buyUsd || 0) - (r.sellUsd || 0))}</span>
+    </div>`;
+}
+
 function renderBooks() {
   const rows = ranked(30);
   const min = Number($("minOverlap").value || 3);
-  const crowded = rows.filter((r) => r.holders.size >= min);
+  const crowded = rows.filter((r) => (r.holders?.size || r.overlap || 0) >= min);
   const potential = rows.filter((r) => r.action === "POTENTIAL");
   const list = (items, empty) => items.length
-    ? items.slice(0, 8).map((r) => `<div class="mini"><b>${coin(r.chain, r.address, r.symbol)}</b><span class="meta">${r.action} · overlap ${r.holders.size} · net ${usd(r.buyUsd - r.sellUsd)}</span></div>`).join("")
+    ? items.slice(0, 8).map(tokenCard).join("")
     : `<div class="muted">${empty}</div>`;
   $("crowdedList").innerHTML = list(crowded, "No identical-coin cluster yet");
   $("potentialList").innerHTML = list(potential, "No early leader flow yet");
   $("book").innerHTML = rows.map((r) => `
-    <article class="row">
+    <article class="row clickable" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}">
       <img class="face" src="${coinSrc(r.chain, r.address)}" alt="" onerror="this.style.display='none'">
       <div>
         <div class="who">${coin(r.chain, r.address, r.symbol)} <span class="tag ${r.action}">${r.action}</span></div>
@@ -179,7 +222,7 @@ function renderBooks() {
       <div>
         ${r.chain === "solana" && r.address
           ? `<button class="buy" data-mint="${r.address}" data-symbol="${r.symbol}">Buy</button>`
-          : `<button class="ghost buy" data-open="${marketUrl(r.chain, r.address)}">Open</button>`}
+          : `<button class="ghost buy" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}">Open</button>`}
       </div>
     </article>`).join("") || `<div class="muted">Waiting for overlapping flow…</div>`;
 }
@@ -192,8 +235,133 @@ function renderTicker(alerts) {
   if (bits.length) $("ticker").textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   ");
 }
 
+function closeSheet() {
+  $("shade").hidden = true;
+  $("sheet").innerHTML = "";
+}
+
+function openSheet(html) {
+  $("sheet").innerHTML = html;
+  $("shade").hidden = false;
+}
+
+async function openTrader(handle) {
+  handle = String(handle || "").replace(/^@/, "");
+  if (!handle) return;
+  const leader = state.leaders.get(handle) || { handle, wallets: {}, name: handle };
+  const tape = state.traderTape.get(handle) || [];
+  const byToken = new Map();
+  for (const row of tape) {
+    const key = tokenKey(row.token, row.address);
+    if (!byToken.has(key)) byToken.set(key, { ...row, buys: 0, sells: 0, buyUsd: 0, sellUsd: 0 });
+    const t = byToken.get(key);
+    if (row.type === "buy") { t.buys += 1; t.buyUsd += row.usd; }
+    if (row.type === "sell") { t.sells += 1; t.sellUsd += row.usd; }
+  }
+  for (const book of state.tokens.values()) {
+    if (book.holders.has(handle)) {
+      const key = book.key;
+      if (!byToken.has(key)) byToken.set(key, { token: book.symbol, address: book.address, chain: book.chain, buys: 0, sells: 0, buyUsd: 0, sellUsd: 0 });
+    }
+  }
+  openSheet(`
+    <div class="sheet-h">
+      ${face(handle)}
+      <div class="grow">
+        <div class="who">@${handle}</div>
+        <div class="meta">${leader.name || ""} · rank ${leader.rank || "—"} · PnL ${usd(leader.pnl)}</div>
+      </div>
+      <button class="ghost slim" data-close type="button">Close</button>
+    </div>
+    <div class="meta">vol ${usd(leader.volume)} · ${leader.trades || 0} trades · ${Number(leader.followers || 0).toLocaleString()} follows</div>
+    <p class="copy">sol ${leader.wallets?.solana || "—"}</p>
+    <p class="copy">evm ${leader.wallets?.evm || "—"}</p>
+    <div class="acts">
+      ${leader.wallets?.solana ? `<button class="ghost" data-copy="${leader.wallets.solana}">Copy SOL</button>` : ""}
+      ${leader.wallets?.evm ? `<button class="ghost" data-copy="${leader.wallets.evm}">Copy EVM</button>` : ""}
+    </div>
+    <h2>coins on this desk</h2>
+    <div id="sheetHolds">${[...byToken.values()].map((t) => `
+      <div class="hold clickable" data-token="${t.token || ""}" data-address="${t.address || ""}" data-chain="${t.chain || ""}">
+        <div>${coin(t.chain, t.address, t.token)}<div class="meta">buy ${usd(t.buyUsd)} · sell ${usd(t.sellUsd)}</div></div>
+        <button class="ghost" data-token="${t.token || ""}" data-address="${t.address || ""}" data-chain="${t.chain || ""}">Open</button>
+      </div>`).join("") || `<div class="muted">No tape prints for this wallet yet. Live buys land here.</div>`}</div>
+    <h2>recent prints</h2>
+    <div>${tape.slice(0, 12).map((t) => `<div class="meta">${ago(t.ts)} · ${t.type} ${coin(t.chain, t.address, t.token)} ${usd(t.usd)}</div>`).join("") || `<div class="muted">Waiting on live prints.</div>`}</div>
+    <p class="fine" id="sheetNote">${state.key ? "Loading official book…" : "Public tape only. Paste a tape key in Desk for official holdings."}</p>
+  `);
+  if (!state.key) return;
+  try {
+    const res = await fetch(`${API}/v2/users/${encodeURIComponent(handle)}/balances`, { headers: authHeaders() });
+    if (!res.ok) throw new Error(`book ${res.status}`);
+    const data = await res.json();
+    const holds = data.holdings || data.balances || (Array.isArray(data) ? data : []);
+    if (!holds.length) return;
+    $("sheetHolds").innerHTML = holds.slice(0, 20).map((h) => {
+      const token = h.token || {};
+      const symbol = token.symbol || h.symbol || "?";
+      const address = token.address || h.address || h.tokenAddress;
+      const chain = h.chain || token.network || "solana";
+      const value = h.valueUsd || h.value || 0;
+      const swap = chain === "solana" && address && !String(address).startsWith("0x");
+      return `<div class="hold clickable" data-token="${symbol}" data-address="${address || ""}" data-chain="${chain}">
+        <div>${coin(chain, address, symbol)}<div class="meta">${usd(value)}</div></div>
+        <button class="${swap ? "buy" : "ghost"}" ${swap ? `data-mint="${address}" data-symbol="${symbol}"` : `data-token="${symbol}" data-address="${address || ""}" data-chain="${chain}"`}>${swap ? "Buy" : "Open"}</button>
+      </div>`;
+    }).join("");
+    $("sheetNote").textContent = "Official book loaded.";
+  } catch (err) {
+    $("sheetNote").textContent = `Official book blocked: ${err.message}`;
+  }
+}
+
+async function openToken(symbol, address, chain) {
+  const book = findBook(symbol, address);
+  chain = chain || book.chain || "solana";
+  address = address || book.address;
+  symbol = (symbol || book.symbol || "?").replace(/^\$/, "");
+  const canSwap = (chain || "").toLowerCase() === "solana" && address && !String(address).startsWith("0x");
+  const holders = [...(book.holders || [])];
+  openSheet(`
+    <div class="sheet-h">
+      <img class="face" src="${coinSrc(chain, address)}" alt="" onerror="this.style.display='none'">
+      <div class="grow">
+        <div class="who">$${symbol}</div>
+        <div class="meta">${actionOf(book)} · ${chain} · overlap ${holders.length}</div>
+      </div>
+      <button class="ghost slim" data-close type="button">Close</button>
+    </div>
+    <p class="copy">${address || "no mint yet"}</p>
+    <div class="acts">
+      ${canSwap ? `<button class="buy" data-mint="${address}" data-symbol="${symbol}">Buy on desk</button>` : ""}
+      <button class="ghost" data-open="${marketUrl(chain, address)}">Token page</button>
+      ${address ? `<button class="ghost" data-copy="${address}">Copy address</button>` : ""}
+    </div>
+    <div class="meta">buy flow ${usd(book.buyUsd)} · sell flow ${usd(book.sellUsd)} · net ${usd(book.buyUsd - book.sellUsd)}</div>
+    <h2>leaders on it</h2>
+    <div>${holders.map((h) => `<div class="hold clickable" data-trader="${h}">${face(h)}<div class="grow">@${h}</div></div>`).join("") || `<div class="muted">No ranked wallet clustered on this mint yet.</div>`}</div>
+    <p class="fine" id="sheetNote">Pulling market card…</p>
+  `);
+  if (!address) {
+    $("sheetNote").textContent = "No contract on the tape yet.";
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
+    const data = await res.json();
+    const pair = (data.pairs || [])[0];
+    if (pair) {
+      $("sheetNote").textContent = `${pair.dexId} · px $${Number(pair.priceUsd || 0).toPrecision(4)} · liq ${usd(pair.liquidity?.usd)} · 24h ${usd(pair.volume?.h24)}`;
+    } else {
+      $("sheetNote").textContent = "No Dex card for this mint.";
+    }
+  } catch {
+    $("sheetNote").textContent = "Market card unavailable.";
+  }
+}
+
 async function loadLeaders() {
-  const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`);
+  const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`, { headers: authHeaders() });
   const data = await res.json();
   state.leaders.clear();
   for (const row of data.traders || []) {
@@ -214,7 +382,7 @@ async function loadLeaders() {
 }
 
 async function loadAlerts(seed) {
-  const res = await fetch(`${API}/v2/alerts?limit=50`);
+  const res = await fetch(`${API}/v2/alerts?limit=50`, { headers: authHeaders() });
   const data = await res.json();
   const alerts = data.alerts || [];
   renderTicker(alerts);
@@ -235,6 +403,7 @@ function ingest(alert, maybeTrade) {
   const id = alert.id || `${alert.ts}-${alert.trader}-${alert.token}`;
   if (state.seen.has(id)) return null;
   state.seen.add(id);
+  rememberTrader(alert);
   const min = Number($("minAlert").value || 0);
   if (alert.usdValue && Number(alert.usdValue) < min && alert.type !== "thesis") return null;
   const book = bookOf(alert.token, alert.tokenAddress, alert.chain);
@@ -275,7 +444,7 @@ function connectWs() {
       const before = state.seen.size;
       ingest(alert, true);
       if (state.seen.size > before) renderFeed(alert, true);
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
   };
   ws.onclose = () => {
     $("liveDot").classList.remove("on");
@@ -283,8 +452,17 @@ function connectWs() {
   };
 }
 
-function connection() {
-  return new window.solanaWeb3.Connection(RPC, "confirmed");
+async function connection() {
+  if (!window.solanaWeb3) throw new Error("web3 missing");
+  let last;
+  for (const url of RPCS) {
+    try {
+      const conn = new window.solanaWeb3.Connection(url, "confirmed");
+      await conn.getEpochInfo();
+      return conn;
+    } catch (err) { last = err; }
+  }
+  throw last || new Error("no rpc");
 }
 
 async function refreshBalance() {
@@ -292,7 +470,7 @@ async function refreshBalance() {
   const box = $("walletBals");
   box.innerHTML = `<div class="meta">reading chain…</div>`;
   try {
-    const conn = connection();
+    const conn = await connection();
     const pk = new window.solanaWeb3.PublicKey(state.wallet);
     const lamports = await conn.getBalance(pk);
     const sol = lamports / 1e9;
@@ -319,8 +497,8 @@ async function refreshBalance() {
         const extra = mint === USDC ? usd(amt) : "";
         rows.push(`<div class="bal-row"><span class="sym"><img class="coin" src="${coinSrc("solana", mint)}" alt="" onerror="this.style.display='none'">${label}</span><span class="amt">${amt >= 1 ? amt.toFixed(2) : amt.toPrecision(3)} ${extra}</span></div>`);
       }
-    } catch (err) {
-      rows.push(`<div class="meta">token books skipped</div>`);
+    } catch (_) {
+      rows.push(`<div class="meta">token list blocked by rpc — SOL is live</div>`);
     }
     box.innerHTML = rows.join("");
     $("walletStatus").textContent = `wallet ${sol.toFixed(2)} SOL`;
@@ -401,16 +579,65 @@ async function proposeBuy(mint, symbol, fromAuto) {
   }
 }
 
+function saveDesk() {
+  localStorage.setItem("buon_desk", JSON.stringify({
+    sizeUsd: $("sizeUsd").value,
+    minAlert: $("minAlert").value,
+    minOverlap: $("minOverlap").value,
+    autoBuy: $("autoBuy").checked,
+  }));
+}
+
+function loadDesk() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("buon_desk") || "{}");
+    if (raw.sizeUsd) $("sizeUsd").value = raw.sizeUsd;
+    if (raw.minAlert) $("minAlert").value = raw.minAlert;
+    if (raw.minOverlap) $("minOverlap").value = raw.minOverlap;
+    if (raw.autoBuy) $("autoBuy").checked = raw.autoBuy;
+  } catch (_) {}
+  $("tapeKey").value = state.key;
+}
+
 document.addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
-  if (!btn) return;
-  if (btn.dataset.mint) proposeBuy(btn.dataset.mint, btn.dataset.symbol, false);
-  if (btn.dataset.open) window.open(btn.dataset.open, "_blank");
+  if (btn?.dataset.close != null) { closeSheet(); return; }
+  if (btn?.dataset.mint) {
+    ev.stopPropagation();
+    proposeBuy(btn.dataset.mint, btn.dataset.symbol, false);
+    return;
+  }
+  if (btn?.dataset.copy) {
+    navigator.clipboard?.writeText(btn.dataset.copy);
+    log("Copied");
+    return;
+  }
+  if (btn?.dataset.open) {
+    window.open(btn.dataset.open, "_blank");
+    return;
+  }
+  const hit = ev.target.closest("[data-trader], [data-token]");
+  if (!hit) return;
+  if (hit.dataset.trader) openTrader(hit.dataset.trader);
+  else if (hit.dataset.token || hit.dataset.address) openToken(hit.dataset.token, hit.dataset.address, hit.dataset.chain);
+});
+
+$("shade").addEventListener("click", (ev) => {
+  if (ev.target.id === "shade") closeSheet();
 });
 
 $("connectBtn").onclick = () => connectWallet().catch((e) => log(e.message));
+$("refreshBal").onclick = () => refreshBalance().catch((e) => log(e.message));
 $("autoBuy").onchange = () => {
   $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle";
+  saveDesk();
+};
+["sizeUsd", "minAlert", "minOverlap"].forEach((id) => { $(id).onchange = saveDesk; });
+$("tapeKey").onchange = () => {
+  state.key = $("tapeKey").value.trim();
+  if (state.key) localStorage.setItem("buon_key", state.key);
+  else localStorage.removeItem("buon_key");
+  log(state.key ? "Tape key saved on this browser" : "Tape key cleared");
 };
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -422,11 +649,10 @@ document.querySelectorAll(".tab").forEach((tab) => {
   };
 });
 
-setInterval(() => {
-  $("clock").textContent = new Date().toLocaleTimeString();
-}, 1000);
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
 
 (async function boot() {
+  loadDesk();
   try {
     await loadLeaders();
     await loadAlerts(true);
