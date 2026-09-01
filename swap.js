@@ -7,9 +7,22 @@ const RPC = {
   1: ["https://cloudflare-eth.com"],
   56: ["https://bsc-dataseed.binance.org"]
 };
-const CHAIN = { ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56 };
+const CHAIN = {
+  ethereum: 1, eth: 1,
+  base: 8453,
+  bsc: 56, bnb: 56, binance: 56,
+  solana: 1151111081153331201, sol: 1151111081153331201,
+  robinhood: 4663, rh: 4663
+};
 
 function logLine(m) { if (typeof log === "function") log(m); }
+
+function destChain(chain, mint) {
+  var c = String(chain || "").toLowerCase();
+  if (CHAIN[c]) return CHAIN[c];
+  if (String(mint || "").indexOf("0x") === 0) return 8453;
+  return 1151111081153331201;
+}
 
 async function rpc(chainId, method, params) {
   var urls = RPC[chainId] || RPC[8453];
@@ -95,24 +108,24 @@ async function lifiQuote(fromChain, toChain, toToken, amount, fromAddress) {
 window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain) {
   try {
     if (!window.BUON_TK) throw new Error("Turnkey not ready");
+    var eth = BigInt(await rpc(8453, "eth_getBalance", [POOL, "latest"]));
+    if (eth === 0n) throw new Error("Pool has 0 ETH on Base. Send a little ETH to 0xB1AC… for gas. USDC cannot pay the first network fee.");
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var amount = String(Math.floor(size * 1e6));
-    var c = String(chain || "base").toLowerCase();
-    var toChain = CHAIN[c] || (String(mint || "").indexOf("0x") === 0 ? 8453 : 1151111081153331201);
-    var fromChain = 8453;
-    var toToken = mint;
-    if (!toToken) throw new Error("no mint");
-    logLine("quoting $" + symbol + " for " + size + " USDC");
-    var q = await lifiQuote(fromChain, toChain, toToken, amount, POOL);
+    var toChain = destChain(chain, mint);
+    if (!mint) throw new Error("no mint");
+    if (toChain === 4663) throw new Error("No public swap route for Robinhood yet — LiFi denies that chain");
+    logLine("quoting $" + symbol + " on " + toChain + " for " + size + " USDC");
+    var q = await lifiQuote(8453, toChain, mint, amount, POOL);
     var tx = q.transactionRequest;
-    if (!tx || !tx.to || !tx.data) throw new Error("no executable route");
+    if (!tx || !tx.to || !tx.data) throw new Error("no executable route on this chain");
     var spend = q.estimate && q.estimate.approvalAddress;
     if (spend) {
       var have = await allowance(spend);
       if (have < BigInt(amount)) await approve(spend, amount);
     }
     var hash = await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
-    if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: c, dest: mint, note: symbol });
+    if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || "base"), dest: mint, note: symbol });
     logLine("buy $" + symbol + " " + hash);
   } catch (err) {
     logLine("swap: " + (err.message || err));
