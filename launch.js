@@ -1,6 +1,5 @@
 (function () {
-  var PUMP = "https://frontend-api-v3.pump.fun/coins?offset=0&limit=40&sort=market_cap&order=DESC&includeNsfw=false&complete=true";
-  var DEX = "https://api.dexscreener.com/token-boosts/top/v1";
+  var PUMP = "https://frontend-api-v3.pump.fun/coins?offset=0&limit=50&sort=market_cap&order=DESC&includeNsfw=false&complete=true";
   var MIN_MC = 50000;
   function usd(n) {
     n = Number(n || 0);
@@ -10,55 +9,36 @@
   }
   function card(t) {
     var buy = typeof buyBtn === "function" ? buyBtn(t.mint, t.symbol, t.chain) : "";
-    return "<div class=\"mini clickable\" data-token=\"" + t.symbol + "\" data-address=\"" + t.mint + "\" data-chain=\"" + t.chain + "\">" +
-      "<b>$" + t.symbol + "</b><span class=\"meta\">" + t.chain + " · graduated · " + usd(t.mc) + "</span>" + buy + "</div>";
+    return "<div class=\"mini clickable\" data-token=\"" + t.symbol + "\" data-address=\"" + t.mint + "\" data-chain=\"solana\">" +
+      "<b>$" + t.symbol + "</b><span class=\"meta\">" + t.name + " · " + usd(t.mc) + "</span>" + buy + "</div>";
   }
   function draw(list) {
-    var box = document.getElementById("gradList") || document.getElementById("crowdedList");
+    var box = document.getElementById("gradList");
     if (!box) return;
-    if (!list.length) { box.innerHTML = "<div class=\"muted\">No graduated names passed the filter</div>"; return; }
-    box.innerHTML = list.slice(0, 12).map(card).join("");
-  }
-  async function pumpGraduated() {
-    var res = await fetch(PUMP);
-    var data = await res.json();
-    var out = [];
-    (Array.isArray(data) ? data : []).forEach(function (c) {
-      if (!c || !c.complete || c.nsfw) return;
-      var mc = Number(c.usd_market_cap || c.market_cap || 0);
-      if (mc < MIN_MC) return;
-      out.push({ symbol: String(c.symbol || "?").replace(/^\$/, ""), mint: c.mint, chain: "solana", mc: mc, src: "pump" });
-    });
-    return out;
-  }
-  async function dexBoosted() {
-    try {
-      var res = await fetch(DEX);
-      var data = await res.json();
-      var out = [];
-      (Array.isArray(data) ? data : []).forEach(function (t) {
-        var chain = String(t.chainId || "");
-        if (["solana", "base", "bsc", "ethereum"].indexOf(chain) < 0) return;
-        out.push({ symbol: String(t.description || "TOK").replace(/[^A-Za-z0-9]/g, "").slice(0, 10) || "TOK", mint: t.tokenAddress, chain: chain, mc: 0, src: "dex" });
-      });
-      return out;
-    } catch (e) { return []; }
+    if (!list.length) { box.innerHTML = "<div class=\"muted\">No graduated Pump coins above filter</div>"; return; }
+    box.innerHTML = list.slice(0, 15).map(card).join("");
   }
   window.loadGraduated = async function () {
+    var res = await fetch(PUMP);
+    var data = await res.json();
     var list = [];
-    try { list = list.concat(await pumpGraduated()); } catch (e) {}
-    try { list = list.concat(await dexBoosted()); } catch (e) {}
-    var seen = {};
-    list = list.filter(function (t) {
-      var k = (t.chain + ":" + t.mint).toLowerCase();
-      if (!t.mint || seen[k]) return false;
-      seen[k] = 1;
-      return true;
+    (Array.isArray(data) ? data : []).forEach(function (c) {
+      if (!c || c.complete !== true || c.nsfw) return;
+      var symbol = String(c.symbol || "").replace(/^\$/, "").trim();
+      if (!symbol || symbol.length > 16) return;
+      var mc = Number(c.usd_market_cap || 0);
+      if (!mc) mc = Number(c.market_cap || 0);
+      if (mc < MIN_MC) return;
+      list.push({ symbol: symbol, name: c.name || symbol, mint: c.mint, chain: "solana", mc: mc });
     });
     draw(list);
-    if (typeof log === "function") log("Graduated filter: " + list.length + " names");
+    if (typeof log === "function") log("Graduated live: " + list.length);
     return list;
   };
-  loadGraduated();
-  setInterval(function () { loadGraduated().catch(function () {}); }, 60000);
+  loadGraduated().catch(function (err) {
+    var box = document.getElementById("gradList");
+    if (box) box.textContent = "Launchpad fetch failed";
+    if (typeof log === "function") log("graduated: " + (err.message || err));
+  });
+  setInterval(function () { loadGraduated().catch(function () {}); }, 45000);
 })();
