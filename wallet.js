@@ -1,14 +1,17 @@
 (function () {
+  var POOL_EVM = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
+  var POOL_SOL = "8ZGuiQZzb6BMDeWjzPzowr6B839ftaJS15ihoscfqEk4";
+  window.BUON_POOL = { evm: POOL_EVM, sol: POOL_SOL };
   var CHAINS = [
-    { id: "solana", name: "Solana", kind: "sol", send: "Solana USDC", gas: "SOL" },
-    { id: "base", name: "Base", kind: "evm", send: "Base USDC", gas: "ETH" },
-    { id: "ethereum", name: "Ethereum", kind: "evm", send: "Ethereum USDC", gas: "ETH" },
-    { id: "bsc", name: "BNB Chain", kind: "evm", send: "BSC USDC", gas: "BNB" },
-    { id: "monad", name: "Monad", kind: "evm", send: "Monad USDC", gas: "MON" },
-    { id: "robinhood", name: "Robinhood Chain", kind: "evm", send: "USDC or USDG", gas: "ETH" }
+    { id: "base", name: "Base", kind: "evm", send: "Mother pool — send Base USDC here" },
+    { id: "ethereum", name: "Ethereum", kind: "evm", send: "Sweeps to Base pool" },
+    { id: "bsc", name: "BNB Chain", kind: "evm", send: "Sweeps to Base pool" },
+    { id: "monad", name: "Monad", kind: "evm", send: "Sweeps to Base pool" },
+    { id: "robinhood", name: "Robinhood Chain", kind: "evm", send: "Sweeps to Base pool" },
+    { id: "solana", name: "Solana", kind: "sol", send: "Sweeps to Base pool" }
   ];
   function addrFor(kind) {
-    return kind === "sol" ? (state.wallet || "") : (state.evm || "");
+    return kind === "sol" ? POOL_SOL : POOL_EVM;
   }
   function draw() {
     var btn = document.getElementById("connectBtn");
@@ -23,41 +26,37 @@
   function chainRows() {
     return CHAINS.map(function (c) {
       var a = addrFor(c.kind);
-      var short = a ? a.slice(0, 6) + "…" + a.slice(-4) : "sign in first";
+      var short = a.slice(0, 6) + "…" + a.slice(-4);
       return "<div class=\"hold\">" +
-        "<div><b>" + c.name + "</b><div class=\"meta\">" + c.send + " · gas " + c.gas + "</div><div class=\"copy\">" + short + "</div></div>" +
-        (a ? "<button class=\"ghost\" data-copy=\"" + a + "\" type=\"button\">Copy</button>" : "") +
+        "<div><b>" + c.name + "</b><div class=\"meta\">" + c.send + "</div><div class=\"copy\">" + short + "</div></div>" +
+        "<button class=\"ghost\" data-copy=\"" + a + "\" type=\"button\">Copy</button>" +
         "</div>";
     }).join("");
   }
   window.openDeposit = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">Same two keys. Six networks.</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">Solana uses the Solana key. The other five use the EVM key.</p>" +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">One pool. Prefer Base USDC.</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      "<p class=\"fine\">Test pool is the Turnkey Base wallet. Send USDC only. Do not send SOL or ETH as cash.</p>" +
       chainRows()
     );
   };
   window.openWithdraw = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">Pick the destination network</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      chainRows() +
-      "<label>Destination<input id=\"wdDest\" placeholder=\"address on the chosen chain\" autocomplete=\"off\" /></label>" +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">Out of the Base pool</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      "<label>Destination<input id=\"wdDest\" placeholder=\"your address\" autocomplete=\"off\" /></label>" +
       "<label>Amount USDC<input id=\"wdAmt\" type=\"number\" min=\"1\" value=\"10\" /></label>" +
       "<button class=\"primary slim\" type=\"button\" id=\"wdGo\">Request withdraw</button>"
     );
     var go = document.getElementById("wdGo");
-    if (go) go.onclick = function () {
-      log("Withdraw queued — " + ((document.getElementById("wdDest") || {}).value || ""));
-    };
+    if (go) go.onclick = function () { log("Withdraw from pool queued"); };
   };
   window.drawPrivyAccount = function (info) {
     info = info || {};
     state.wallet = info.sol || "";
     state.evm = info.evm || "";
     state.email = info.email || "";
-    state.kp = null;
     draw();
     if (typeof refreshBalance === "function") refreshBalance();
   };
@@ -68,15 +67,11 @@
     if (state.wallet || state.evm) return state.wallet || state.evm;
     throw new Error("Sign in first");
   };
-  window.signAndSend = async function () {
-    throw new Error("Signing uses the Privy embedded wallet");
-  };
   window.disconnectWallet = function () {
     if (typeof window.buonLogout === "function") window.buonLogout();
     state.wallet = null;
     state.evm = null;
     state.email = "";
-    state.cashUsdc = 0;
     var btn = document.getElementById("connectBtn");
     if (btn) btn.textContent = "Sign in";
     var d = document.getElementById("disconnectBtn");
