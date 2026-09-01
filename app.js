@@ -71,85 +71,33 @@ async function loadLeaders() { const res = await fetch(`${API}/v2/leaderboard/24
 async function loadAlerts(seed) { const res = await fetch(`${API}/v2/alerts?limit=50`, { headers: authHeaders() }); const data = await res.json(); const alerts = data.alerts || []; renderTicker(alerts); let added = 0; const ordered = seed ? alerts.slice().reverse() : alerts; for (const a of ordered) { const before = state.seen.size; ingest(a, !seed); if (state.seen.size > before) { renderFeed(a, !seed); added += 1; } } $("feedMeta").textContent = seed ? `${alerts.length} live prints` : `${added} new · ${alerts.length} on tape`; }
 function ingest(alert, maybeTrade) { const id = alert.id || `${alert.ts}-${alert.trader}-${alert.token}`; if (state.seen.has(id)) return null; state.seen.add(id); rememberTrader(alert); const min = Number($("minAlert").value || 0); if (alert.usdValue && Number(alert.usdValue) < min && alert.type !== "thesis") return null; const book = bookOf(alert.token, alert.tokenAddress, alert.chain); const side = (alert.type || "").toLowerCase(); const usdValue = Number(alert.usdValue || 0); const tracked = state.leaders.has(alert.trader); if (side === "buy") { book.buys += 1; book.buyUsd += usdValue; if (tracked) book.holders.add(alert.trader); } else if (side === "sell") { book.sells += 1; book.sellUsd += usdValue; if (tracked) book.holders.delete(alert.trader); } renderBooks(); if (maybeTrade && $("autoBuy").checked && (actionOf(book) === "CROWDED_BID" || actionOf(book) === "POTENTIAL") && book.address) proposeBuy(book.address, book.symbol, true, book.chain); return book; }
 function connectWs() { const ws = new WebSocket(TAPE_WS); ws.onopen = () => { $("liveDot").classList.add("on"); log("Live tape connected"); }; ws.onmessage = (ev) => { try { const msg = JSON.parse(ev.data); if (msg.type === "welcome") return; const alert = msg.alert || msg; if (!alert || !alert.trader) return; const before = state.seen.size; ingest(alert, true); if (state.seen.size > before) renderFeed(alert, true); } catch (_) {} }; ws.onclose = () => { $("liveDot").classList.remove("on"); setTimeout(connectWs, 4000); }; }
-async function connection() { if (!window.solanaWeb3) throw new Error("web3 missing"); let last; for (const url of RPCS) { try { const conn = new window.solanaWeb3.Connection(url, "confirmed"); await conn.getEpochInfo(); return conn; } catch (err) { last = err; } } throw last || new Error("no rpc"); }
+async function connection() {
+  if (!window.solanaWeb3) throw new Error("web3 missing");
+  var extra = (document.getElementById("rpcUrl") && document.getElementById("rpcUrl").value.trim()) || localStorage.getItem("buon_rpc") || "";
+  return new window.solanaWeb3.Connection(extra || "https://api.mainnet-beta.solana.com", "confirmed");
+}
 async function refreshBalance() {
-  if (!state.wallet || !window.solanaWeb3) return;
-  const box = $("walletBals"); box.innerHTML = `<div class="meta">reading cash…</div>`;
-  try {
-    const conn = await connection(); const pk = new window.solanaWeb3.PublicKey(state.wallet);
-    const sol = (await conn.getBalance(pk)) / 1e9;
-    const rows = [`<div class="bal-row"><span>SOL gas</span><span class="amt">${sol.toFixed(4)}</span></div>`];
-    try {
-      const parsed = await conn.getParsedTokenAccountsByOwner(pk, { programId: new window.solanaWeb3.PublicKey(TOKEN_PROGRAM) });
-      const tokens = parsed.value.map((acc) => acc.account.data.parsed?.info).filter((info) => info && Number(info.tokenAmount?.uiAmount || 0) > 0).sort((a, b) => Number(b.tokenAmount.uiAmount) - Number(a.tokenAmount.uiAmount)).slice(0, 6);
-      for (const info of tokens) {
-        const mint = info.mint; const amt = Number(info.tokenAmount.uiAmount);
-        if (mint === USDC) { state.cashUsdc = amt; rows.unshift(`<div class="bal-row"><span>cash</span><span><span class="amt">${amt.toFixed(2)} USDC</span></span></div>`); }
-        else rows.push(`<div class="bal-row"><span>${mint.slice(0, 4)}</span><span class="amt">${amt >= 1 ? amt.toFixed(2) : amt.toPrecision(3)}</span></div>`);
-      }
-    } catch (_) { rows.push(`<div class="meta">token list blocked by rpc</div>`); }
-    box.innerHTML = rows.join("");
-    $("walletStatus").textContent = state.cashUsdc ? `cash ${state.cashUsdc.toFixed(2)} USDC` : `wallet ${sol.toFixed(2)} SOL`;
-  } catch (err) { box.innerHTML = `<div class="meta">balance error: ${err.message || err}</div>`; }
+  if (typeof window.deskRefresh === "function") return window.deskRefresh();
 }
 async function connectWallet() {
-  const provider = window.solana; if (!provider?.isPhantom) { window.open("https://phantom.app/", "_blank"); log("Phantom not found"); return; }
-  const res = await provider.connect(); state.wallet = res.publicKey.toString();
-  try { const eth = window.phantom?.ethereum || window.ethereum; if (eth?.request) { const acc = await eth.request({ method: "eth_requestAccounts" }); state.evm = acc?.[0] || null; } } catch (_) {}
-  $("walletAddr").textContent = state.evm ? `${state.wallet}\n${state.evm}` : state.wallet;
-  $("connectBtn").textContent = "Connected"; log(state.evm ? "Phantom connected · fund USDC cash" : "Phantom connected · fund USDC to trade");
-  await refreshBalance();
+  if (typeof openCashAccount === "function") { openCashAccount(); return; }
 }
 function usdcAtoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
 function isSolMint(chain, mint) { const c = (chain || "").toLowerCase(); return (!c || c === "solana" || c === "sol") && mint && !String(mint).startsWith("0x"); }
 async function proposeBuy(mint, symbol, fromAuto, chain) {
-  if (state.busy) return; if (!state.wallet) { log("Connect Phantom first"); return; }
-  const size = Number($("sizeUsd").value || 20); if (size <= 0 || size > 500) { log("Size must be 1–500 USDC"); return; }
-  if (isSolMint(chain, mint)) return proposeJupUsdc(mint, symbol, fromAuto, size);
-  return proposeRelay(mint, symbol, size, chain);
-}
-async function proposeJupUsdc(mint, symbol, fromAuto, size) {
-  if (!window.solanaWeb3) { log("Solana web3 failed to load"); return; }
-  state.busy = true; $("botStatus").textContent = fromAuto ? "bot proposing" : "quoting USDC";
-  try {
-    const quote = await fetch(`${JUP_QUOTE}?inputMint=${USDC}&outputMint=${mint}&amount=${usdcAtoms(size)}&slippageBps=150`).then((r) => r.json());
-    if (quote.error || quote.errorCode) throw new Error(quote.error || quote.errorCode);
-    const swap = await fetch(JUP_SWAP, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true }) }).then((r) => r.json());
-    if (!swap.swapTransaction) throw new Error(swap.error || "No swap tx");
-    const raw = Uint8Array.from(atob(swap.swapTransaction), (c) => c.charCodeAt(0));
-    const tx = window.solanaWeb3.VersionedTransaction.deserialize(raw);
-    const signed = await window.solana.signAndSendTransaction(tx);
-    log(`Signed $${symbol} with ${size} USDC · ${signed.signature || signed}`); $("botStatus").textContent = "filled / sent"; refreshBalance();
-  } catch (err) { log(`USDC swap blocked: ${err.message || err}`); $("botStatus").textContent = "idle"; }
-  finally { state.busy = false; }
-}
-async function proposeRelay(mint, symbol, size, chain) {
-  state.busy = true; $("botStatus").textContent = "quoting cash route";
-  try {
-    if (!state.evm) { try { const eth = window.phantom?.ethereum || window.ethereum; if (eth?.request) { const acc = await eth.request({ method: "eth_requestAccounts" }); state.evm = acc?.[0] || null; } } catch (_) {} }
-    const dest = RELAY_CHAIN[(chain || "").toLowerCase()];
-    if (!dest) throw new Error(`no cash route id for ${chain}`);
-    const quote = await fetch(RELAY, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ user: state.wallet, recipient: state.evm || state.wallet, originChainId: RELAY_CHAIN.solana, destinationChainId: dest, originCurrency: USDC, destinationCurrency: mint, amount: String(usdcAtoms(size)), tradeType: "EXACT_INPUT" }) }).then(async (r) => { const data = await r.json(); if (!r.ok) throw new Error(data.message || data.errorCode || `route ${r.status}`); return data; });
-    const step = (quote.steps || []).find((s) => s.kind === "transaction" || s.id === "deposit") || (quote.steps || [])[0];
-    const raw = step?.items?.[0]?.data?.data || step?.items?.[0]?.data;
-    if (typeof raw === "string" && raw.length > 80 && !raw.startsWith("0x") && window.solanaWeb3) {
-      const tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(raw), (c) => c.charCodeAt(0)));
-      const signed = await window.solana.signAndSendTransaction(tx);
-      log(`Routed $${symbol} on ${chain} with ${size} USDC · ${signed.signature || signed}`); $("botStatus").textContent = "filled / sent"; refreshBalance(); return;
-    }
-    throw new Error("no public signable cash route yet");
-  } catch (err) { log(`Keep USDC as cash. ${chain}: ${err.message || err}`); $("botStatus").textContent = "idle"; }
-  finally { state.busy = false; }
+  if (typeof window.deskBuy === "function") return window.deskBuy(mint, symbol, fromAuto, chain);
+  if (state.busy) return;
+  if (!state.wallet && window.ensureWallet) await window.ensureWallet();
+  if (!state.wallet) { log("Open cash account first"); return; }
 }
 function saveDesk() { localStorage.setItem("buon_desk", JSON.stringify({ sizeUsd: $("sizeUsd").value, minAlert: $("minAlert").value, minOverlap: $("minOverlap").value, autoBuy: $("autoBuy").checked })); }
-function loadDesk() { try { const raw = JSON.parse(localStorage.getItem("buon_desk") || "{}"); if (raw.sizeUsd) $("sizeUsd").value = raw.sizeUsd; if (raw.minAlert) $("minAlert").value = raw.minAlert; if (raw.minOverlap) $("minOverlap").value = raw.minOverlap; if (raw.autoBuy) $("autoBuy").checked = raw.autoBuy; } catch (_) {} $("tapeKey").value = state.key; }
-document.addEventListener("click", (ev) => { const btn = ev.target.closest("button"); if (btn?.dataset.close != null) { closeSheet(); return; } if (btn?.dataset.mint) { ev.stopPropagation(); proposeBuy(btn.dataset.mint, btn.dataset.symbol, false, btn.dataset.chain); return; } if (btn?.dataset.copy) { navigator.clipboard?.writeText(btn.dataset.copy); log("Copied"); return; } const hit = ev.target.closest("[data-trader], [data-token]"); if (!hit) return; if (hit.dataset.trader) openTrader(hit.dataset.trader); else openToken(hit.dataset.token, hit.dataset.address, hit.dataset.chain); });
+function loadDesk() { try { const raw = JSON.parse(localStorage.getItem("buon_desk") || "{}"); if (raw.sizeUsd) $("sizeUsd").value = raw.sizeUsd; if (raw.minAlert) $("minAlert").value = raw.minAlert; if (raw.minOverlap) $("minOverlap").value = raw.minOverlap; if (raw.autoBuy) $("autoBuy").checked = raw.autoBuy; } catch (_) {} if ($("tapeKey")) $("tapeKey").value = state.key; }
+document.addEventListener("click", (ev) => { const btn = ev.target.closest("button"); if (btn?.dataset.close != null) { closeSheet(); return; } if (btn?.dataset.sell) return; if (btn?.dataset.mint) { ev.stopPropagation(); proposeBuy(btn.dataset.mint, btn.dataset.symbol, false, btn.dataset.chain); return; } if (btn?.dataset.copy) { navigator.clipboard?.writeText(btn.dataset.copy); log("Copied"); return; } const hit = ev.target.closest("[data-trader], [data-token]"); if (!hit) return; if (hit.dataset.trader) openTrader(hit.dataset.trader); else openToken(hit.dataset.token, hit.dataset.address, hit.dataset.chain); });
 $("shade").addEventListener("click", (ev) => { if (ev.target.id === "shade") closeSheet(); });
-$("connectBtn").onclick = () => connectWallet().catch((e) => log(e.message));
-$("refreshBal").onclick = () => refreshBalance().catch((e) => log(e.message));
-$("autoBuy").onchange = () => { $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle"; saveDesk(); };
-["sizeUsd", "minAlert", "minOverlap"].forEach((id) => { $(id).onchange = saveDesk; });
-$("tapeKey").onchange = () => { state.key = $("tapeKey").value.trim(); if (state.key) localStorage.setItem("buon_key", state.key); else localStorage.removeItem("buon_key"); log(state.key ? "Tape key saved on this browser" : "Tape key cleared"); };
+if ($("refreshBal")) $("refreshBal").onclick = () => refreshBalance().catch((e) => log(e.message));
+if ($("autoBuy")) $("autoBuy").onchange = () => { $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle"; saveDesk(); };
+["sizeUsd", "minAlert", "minOverlap"].forEach((id) => { if ($(id)) $(id).onchange = saveDesk; });
+if ($("tapeKey")) $("tapeKey").onchange = () => { state.key = $("tapeKey").value.trim(); if (state.key) localStorage.setItem("buon_key", state.key); else localStorage.removeItem("buon_key"); };
 document.querySelectorAll(".tab").forEach((tab) => { tab.onclick = () => { document.querySelectorAll(".tab").forEach((t) => t.classList.remove("on")); document.querySelectorAll(".view").forEach((v) => v.classList.remove("on")); tab.classList.add("on"); $(`view-${tab.dataset.view}`).classList.add("on"); }; });
-setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
-(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlerts(true); connectWs(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlerts(false).catch(() => {}), 12_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
+setInterval(() => { if ($("clock")) $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
+(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlerts(true); connectWs(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlerts(false).catch(() => {}), 12_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { if ($("apiStatus")) $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
