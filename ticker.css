@@ -1,0 +1,9 @@
+.ticker { display: inline-flex; align-items: center; gap: 18px; white-space: nowrap; padding: 7px 24px; animation: tick 80s linear infinite; }
+.ticker-wrap:hover .ticker { animation-play-state: paused; }
+.tick {
+  border: 0; background: transparent; color: var(--soft);
+  font: 12px var(--mono); padding: 0;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.tick:hover { color: #fff; }
+.tick-who { color: var(--text); font-weight: 650; font-family: var(--sans); }
