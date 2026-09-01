@@ -8,7 +8,9 @@
     try { return JSON.parse(localStorage.getItem(STORE) || "[]").filter(real); }
     catch (e) { return []; }
   }
-  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real).slice(0, 20)); }
+  function save(list) {
+    localStorage.setItem(STORE, JSON.stringify(list.filter(real).slice(0, 20)));
+  }
   function tpPct() { return Math.max(1, Number((document.getElementById("tpPct") || {}).value || 30)); }
   function tpUsd() { return Math.max(0, Number((document.getElementById("tpUsd") || {}).value || 50)); }
   function usd(n) {
