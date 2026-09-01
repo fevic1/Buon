@@ -1,164 +1,73 @@
 (function () {
   const DEFAULT_APP = "cmtid3972041k0cl7b7xyt0xs";
-  const APP_KEY = "buon_privy_app";
-  const CLIENT_KEY = "buon_privy_client";
-  const EMAIL_KEY = "buon_privy_email";
-  var privy = null;
-
+  const AUTH = "https://auth.privy.io/api/v1";
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
-  function saveIds() {
-    localStorage.setItem(APP_KEY, val("privyAppId") || DEFAULT_APP);
-    localStorage.setItem(CLIENT_KEY, val("privyClientId"));
-    localStorage.setItem(EMAIL_KEY, val("privyEmail"));
-  }
-  function loadIds() {
-    var a = document.getElementById("privyAppId");
-    var c = document.getElementById("privyClientId");
-    var e = document.getElementById("privyEmail");
-    if (a && !a.value) a.value = localStorage.getItem(APP_KEY) || DEFAULT_APP;
-    if (c && !c.value) c.value = localStorage.getItem(CLIENT_KEY) || "";
-    if (e && !e.value) e.value = localStorage.getItem(EMAIL_KEY) || "";
+  function appId() { return val("privyAppId") || DEFAULT_APP; }
+  function clientId() { return val("privyClientId"); }
+  function headers() {
+    var h = { "content-type": "application/json", "privy-app-id": appId() };
+    if (clientId()) h["privy-client-id"] = clientId();
+    return h;
   }
   function errText(e) {
     if (!e) return "unknown";
     if (typeof e === "string") return e;
-    return e.message || e.error || e.code || JSON.stringify(e);
+    return e.error || e.message || e.code || JSON.stringify(e);
   }
-
-  async function loadSdk() {
-    log("Loading Privy SDK");
-    var mod = await import("https://esm.sh/@privy-io/js-sdk-core@0.72.1");
-    return mod;
+  async function post(path, body) {
+    var res = await fetch(AUTH + path, { method: "POST", headers: headers(), body: JSON.stringify(body) });
+    var text = await res.text();
+    var data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
+    if (!res.ok) throw new Error(data.error || data.message || text || ("HTTP " + res.status));
+    return data;
   }
-
-  async function client() {
-    if (privy) return privy;
-    saveIds();
-    var appId = val("privyAppId") || DEFAULT_APP;
-    var clientId = val("privyClientId");
-    var mod = await loadSdk();
-    var Privy = mod.default || mod.Privy;
-    var LocalStorage = mod.LocalStorage;
-    if (!Privy) throw new Error("Privy SDK export missing");
-    var opts = { appId: appId, storage: new LocalStorage() };
-    if (clientId) opts.clientId = clientId;
-    privy = new Privy(opts);
-    log("Privy client ready");
-    try {
-      if (privy.embeddedWallet && privy.embeddedWallet.getURL) {
-        var iframe = document.getElementById("privyFrame") || document.createElement("iframe");
-        iframe.id = "privyFrame";
-        iframe.src = privy.embeddedWallet.getURL();
-        iframe.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;border:0";
-        document.body.appendChild(iframe);
-        if (privy.setMessagePoster) privy.setMessagePoster(iframe.contentWindow);
-        window.addEventListener("message", function (ev) {
-          if (ev.source !== iframe.contentWindow) return;
-          var data = ev.data;
-          if (typeof data === "string") { try { data = JSON.parse(data); } catch (e) {} }
-          if (privy.embeddedWallet.onMessage) privy.embeddedWallet.onMessage(data);
-        });
-      }
-    } catch (e) { log("iframe: " + errText(e)); }
-    return privy;
-  }
-
   function solAddress(user) {
     if (!user) return null;
-    var bags = [user.linked_accounts, user.linkedAccounts, user.wallets, user.smartWallets];
+    var bags = [user.linked_accounts, user.linkedAccounts, user.wallets];
     for (var b = 0; b < bags.length; b++) {
       var list = bags[b] || [];
       for (var i = 0; i < list.length; i++) {
         var a = list[i] || {};
-        var chain = String(a.chain_type || a.chainType || a.type || a.chain || "").toLowerCase();
-        if ((chain.indexOf("sol") >= 0 || chain.indexOf("svm") >= 0) && a.address) return a.address;
+        var chain = String(a.chain_type || a.chainType || a.type || "").toLowerCase();
+        if ((/sol|svm/).test(chain) && a.address) return a.address;
+        if (a.address && !String(a.address).startsWith("0x") && String(a.address).length > 30) return a.address;
       }
     }
-    if (user.wallet && user.wallet.address) return user.wallet.address;
-    return null;
+    return user.wallet && user.wallet.address;
   }
-
-  async function afterLogin(user) {
-    log("Logged in, looking for Solana wallet");
-    var addr = solAddress(user);
-    if (!addr && privy.embeddedWallet && privy.embeddedWallet.create) {
-      try {
-        var created = await privy.embeddedWallet.create({ chainType: "solana" });
-        user = created.user || created;
-        addr = solAddress(user) || created.address;
-      } catch (e) { log("create wallet: " + errText(e)); }
-    }
-    if (!addr) throw new Error("Login worked but no Solana wallet. Enable SVM embedded wallets in Privy.");
+  function showAccount(addr, user) {
     state.wallet = addr;
     state.kp = null;
     state.privyUser = user;
     document.getElementById("connectBtn").textContent = "Cash account";
     document.getElementById("disconnectBtn").hidden = false;
     document.getElementById("walletStatus").textContent = "wallet on";
-    document.getElementById("addrList").innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + addr + "</code><button class=\"ghost\" data-copy=\"" + addr + "\" type=\"button\">Copy</button></div><div class=\"meta\">Privy cash account</div>";
+    document.getElementById("walletAddr").textContent = addr;
+    document.getElementById("addrList").innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + addr + "</code><button class=\"ghost\" data-copy=\"" + addr + "\" type=\"button\">Copy</button></div><div class=\"meta\">Privy cash account. Deposit Solana USDC here.</div>";
     log("Privy cash account " + addr);
     if (typeof refreshBalance === "function") refreshBalance();
   }
-
-  async function sendCode() {
-    var email = val("privyEmail");
-    if (!email) throw new Error("Enter email");
-    var p = await client();
-    var fn = p.auth && p.auth.email && (p.auth.email.sendCode || p.auth.email.sendOTP);
-    if (!fn) throw new Error("SDK has no email.sendCode");
-    try { await fn.call(p.auth.email, email); }
-    catch (e1) { await fn.call(p.auth.email, { email: email }); }
-    log("Code sent to " + email);
-  }
-
-  async function loginCode() {
-    var email = val("privyEmail");
-    var code = val("privyCode");
-    if (!email || !code) throw new Error("Email and code required");
-    var p = await client();
-    var emailApi = p.auth && p.auth.email;
-    if (!emailApi) throw new Error("SDK has no auth.email");
-    var session;
-    var methods = ["loginWithCode", "login", "verifyCode"];
-    var last;
-    for (var i = 0; i < methods.length; i++) {
-      var name = methods[i];
-      if (typeof emailApi[name] !== "function") continue;
-      try {
-        session = await emailApi[name](email, code);
-        log("Login via " + name);
-        break;
-      } catch (e1) {
-        try {
-          session = await emailApi[name]({ email: email, code: code });
-          log("Login via " + name + " object");
-          break;
-        } catch (e2) { last = e2; }
-      }
-    }
-    if (!session) throw last || new Error("All login methods failed");
-    await afterLogin(session.user || session);
-  }
-
   window.sendPrivyCode = function () {
-    sendCode().catch(function (e) { log("Send code: " + errText(e)); });
+    var email = val("privyEmail");
+    if (!email) { log("Enter email first"); return; }
+    log("Sending login code");
+    post("/passwordless/init", { email: email }).then(function () {
+      log("Code sent to " + email + ". Check the inbox.");
+    }).catch(function (e) { log("Send code failed: " + errText(e)); });
   };
   window.verifyPrivyCode = function () {
-    log("Opening cash account");
-    loginCode().catch(function (e) { log("Open account: " + errText(e)); });
+    var email = val("privyEmail");
+    var code = val("privyCode");
+    if (!email || !code) { log("Email and code required"); return; }
+    log("Opening Privy session");
+    post("/passwordless/authenticate", { email: email, code: code, mode: "login-or-sign-up" }).then(function (session) {
+      var user = session.user || session;
+      var addr = solAddress(user);
+      if (!addr) throw new Error("Logged in, no Solana wallet on the user yet");
+      showAccount(addr, user);
+    }).catch(function (e) { log("Open account failed: " + errText(e)); });
   };
-
-  function bind(id, fn) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("click", function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      fn();
-    });
-  }
-  bind("privySend", window.sendPrivyCode);
-  bind("privyGo", window.verifyPrivyCode);
-  loadIds();
-  log("Privy login ready");
+  var a = document.getElementById("privyAppId");
+  if (a && !a.value) a.value = DEFAULT_APP;
 })();
