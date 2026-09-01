@@ -1,7 +1,7 @@
 (function () {
   const DEFAULT_APP = "cmtid3972041k0cl7b7xyt0xs";
   const AUTH = "https://auth.privy.io/api/v1";
-  const STORE = "buon_embed_v1";
+  const SESS = "buon_privy_session";
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function appId() { return val("privyAppId") || DEFAULT_APP; }
   function headers() {
@@ -15,77 +15,78 @@
     var res = await fetch(AUTH + path, { method: "POST", headers: headers(), body: JSON.stringify(body || {}) });
     var text = await res.text();
     var data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
+    try { data = text ? JSON.parse(text) : {}; } catch (err) { data = { raw: text }; }
     if (!res.ok) throw new Error(data.error || data.message || ("HTTP " + res.status));
     return data;
   }
-  function solAddress(user) {
-    if (!user) return null;
-    var bags = [user.linked_accounts, user.linkedAccounts, user.wallets];
-    for (var b = 0; b < bags.length; b++) {
-      var list = bags[b] || [];
-      for (var i = 0; i < list.length; i++) {
-        var a = list[i] || {};
-        var chain = String(a.chain_type || a.chainType || a.type || "").toLowerCase();
-        var addr = a.address;
-        if (addr && (/sol|svm/.test(chain) || (!String(addr).startsWith("0x") && String(addr).length >= 32))) return addr;
-      }
+  function accountsOf(user) {
+    return (user && (user.linked_accounts || user.linkedAccounts)) || [];
+  }
+  function emailOf(user) {
+    var list = accountsOf(user);
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].type || "").toLowerCase() === "email") return list[i].address;
+    }
+    return user && (user.email || user.email_address);
+  }
+  function solOf(user) {
+    var list = accountsOf(user);
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i];
+      var t = String(a.type || a.chain_type || a.chainType || "").toLowerCase();
+      if ((/solana|svm/).test(t) && a.address) return a.address;
     }
     return null;
   }
-  function showAccount(addr, note) {
-    state.wallet = addr;
-    document.getElementById("connectBtn").textContent = "Cash account";
+  function paintUser(user) {
+    var id = user.id || user.did || user.user_id || "unknown";
+    var email = emailOf(user) || val("privyEmail") || "";
+    var types = accountsOf(user).map(function (a) { return a.type || a.chain_type || "?"; }).join(", ") || "none";
+    var sol = solOf(user);
+    state.privyUser = user;
+    document.getElementById("walletAddr").textContent = email ? ("Privy \u00b7 " + email) : ("Privy \u00b7 " + id);
+    document.getElementById("connectBtn").textContent = "Signed in";
     document.getElementById("disconnectBtn").hidden = false;
-    document.getElementById("walletStatus").textContent = "wallet on";
-    document.getElementById("walletAddr").textContent = addr;
-    document.getElementById("addrList").innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + addr + "</code><button class=\"ghost\" data-copy=\"" + addr + "\" type=\"button\">Copy</button></div><div class=\"meta\">" + note + "</div>";
-    log(note + " " + addr);
-    if (typeof refreshBalance === "function") refreshBalance();
-  }
-  function openLocal() {
-    if (!window.solanaWeb3) throw new Error("solana web3 missing");
-    var raw = localStorage.getItem(STORE);
-    var kp;
-    if (raw) kp = window.solanaWeb3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
-    else {
-      kp = window.solanaWeb3.Keypair.generate();
-      localStorage.setItem(STORE, JSON.stringify(Array.from(kp.secretKey)));
+    document.getElementById("walletStatus").textContent = "privy on";
+    var html = "<div class=\"meta\">Privy user</div><div class=\"addr-row\"><span class=\"meta\">ID</span><code>" + id + "</code></div>";
+    if (email) html += "<div class=\"addr-row\"><span class=\"meta\">Email</span><code>" + email + "</code></div>";
+    html += "<div class=\"meta\">Linked: " + types + "</div>";
+    if (sol) {
+      state.wallet = sol;
+      html += "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + sol + "</code><button class=\"ghost\" data-copy=\"" + sol + "\" type=\"button\">Copy</button></div>";
+    } else {
+      state.wallet = null;
+      html += "<div class=\"meta\">No Solana wallet on this Privy user. FOMO creates that in their React app, not in this static page.</div>";
     }
-    state.kp = kp;
-    showAccount(kp.publicKey.toString(), "Cash account ready. Send Solana USDC here.");
-    return kp.publicKey.toString();
+    document.getElementById("addrList").innerHTML = html;
+    log("Privy session " + id + " \u00b7 " + (email || "") + " \u00b7 linked " + types + (sol ? (" \u00b7 " + sol) : " \u00b7 no Solana wallet"));
+    if (sol && typeof refreshBalance === "function") refreshBalance();
   }
   window.sendPrivyCode = function () {
     var email = val("privyEmail");
     if (!email) { log("Enter email first"); return; }
-    log("Sending login code");
+    log("Sending Privy code");
     post("/passwordless/init", { email: email }).then(function () {
-      log("Code sent");
+      log("Privy sent a code to " + email);
     }).catch(function (e) { log("Send code failed: " + errText(e)); });
   };
   window.verifyPrivyCode = function () {
     var email = val("privyEmail");
     var code = val("privyCode");
-    log("Opening cash account");
-    function finishLocal(why) {
-      log(why);
-      openLocal();
-    }
-    if (!email || !code) { finishLocal("No code — opening in-app cash account"); return; }
+    if (!email || !code) { log("Email and code required"); return; }
+    log("Checking Privy code");
     post("/passwordless/authenticate", { email: email, code: code, mode: "login-or-sign-up" }).then(function (session) {
       var user = session.user || session;
-      var addr = solAddress(user);
-      if (addr) {
-        state.kp = null;
-        showAccount(addr, "Privy Solana account. Send USDC here.");
-        return;
-      }
-      finishLocal("Privy logged in, no Solana wallet on that user. Opened in-app cash account instead.");
-    }).catch(function (e) {
-      finishLocal("Privy: " + errText(e) + ". Opened in-app cash account instead.");
-    });
+      try { localStorage.setItem(SESS, JSON.stringify({ id: user.id, email: emailOf(user), linked: accountsOf(user).map(function (a) { return { type: a.type, chain_type: a.chain_type, address: a.address }; }) })); } catch (e) {}
+      paintUser(user);
+    }).catch(function (e) { log("Privy login failed: " + errText(e)); });
   };
   var a = document.getElementById("privyAppId");
   if (a && !a.value) a.value = DEFAULT_APP;
+  try {
+    var saved = JSON.parse(localStorage.getItem(SESS) || "null");
+    if (saved && saved.id) {
+      paintUser({ id: saved.id, linked_accounts: (saved.linked || []).concat(saved.email ? [{ type: "email", address: saved.email }] : []) });
+    }
+  } catch (e) {}
 })();
