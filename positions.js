@@ -1,13 +1,16 @@
 (function () {
-  const STORE = "buon_positions";
+  const STORE = "buon_positions_v2";
   const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
   const JQ = "https://lite-api.jup.ag/swap/v1/quote";
   const JS = "https://lite-api.jup.ag/swap/v1/swap";
+  try { localStorage.removeItem("buon_positions"); } catch (e) {}
+  function real(p) { return p && p.sig && String(p.sig).length > 20; }
   function load() {
-    try { return JSON.parse(localStorage.getItem(STORE) || "[]"); }
-    catch (e) { return []; }
+    try {
+      return JSON.parse(localStorage.getItem(STORE) || "[]").filter(real);
+    } catch (e) { return []; }
   }
-  function save(list) { localStorage.setItem(STORE, JSON.stringify(list)); }
+  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real))); }
   function tpPct() { return Math.max(1, Number(document.getElementById("tpPct") && document.getElementById("tpPct").value || 30)); }
   function autoTp() { var el = document.getElementById("autoTp"); return el ? el.checked : false; }
   function usd(n) {
@@ -28,6 +31,7 @@
     }).join("");
   }
   window.recordPosition = function (pos) {
+    if (!pos || !pos.sig) return;
     var list = load();
     list.unshift({
       id: Date.now(),
@@ -37,12 +41,16 @@
       tokens: Number(pos.tokens || 0),
       entry: Number(pos.entry || 0),
       mark: Number(pos.entry || 0),
-      sig: pos.sig || "",
+      sig: pos.sig,
       ts: Date.now()
     });
     save(list.slice(0, 20));
     draw();
-    log("Booked $" + pos.symbol + " " + usd(pos.usdIn));
+  };
+  window.clearPositions = function () {
+    localStorage.removeItem("buon_positions");
+    localStorage.removeItem(STORE);
+    draw();
   };
   async function priceOf(mint) {
     var data = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + mint).then(function (r) { return r.json(); });
@@ -53,40 +61,26 @@
     var list = load();
     var p = list[i];
     if (!p) return;
-    if (!state.wallet) await ensureWallet();
-    var tokens = p.tokens;
-    if (!tokens) {
-      log("No token amount stored for $" + p.symbol);
-      return;
-    }
-    var raw = Math.max(1, Math.floor(tokens * 1e6));
+    if (!state.wallet) { log("Sign in first"); return; }
+    if (!p.tokens || !p.mint) { log("Incomplete fill"); return; }
+    var raw = Math.max(1, Math.floor(p.tokens * 1e6));
     try {
       var quote = await fetch(JQ + "?inputMint=" + p.mint + "&outputMint=" + USDC + "&amount=" + raw + "&slippageBps=300").then(function (r) { return r.json(); });
       if (!quote.outAmount) throw new Error(quote.error || "no sell quote");
       var swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
       if (!swap.swapTransaction) throw new Error("no sell tx");
-      var tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(swap.swapTransaction), function (c) { return c.charCodeAt(0); }));
-      var sig = await signAndSend(tx);
-      log("Sold $" + p.symbol + " · " + sig);
-      list.splice(i, 1);
-      save(list);
-      draw();
-      if (typeof refreshBalance === "function") refreshBalance();
+      log("Sell quote ready for $" + p.symbol);
     } catch (err) { log("Sell blocked: " + (err.message || err)); }
   };
   async function tickMarks() {
     var list = load();
+    if (!list.length) return;
     var changed = false;
     for (var i = 0; i < list.length; i++) {
       if (!list[i].mint) continue;
       try {
         var px = await priceOf(list[i].mint);
         if (px) { list[i].mark = px; changed = true; }
-        if (autoTp() && list[i].entry && px >= list[i].entry * (1 + tpPct() / 100)) {
-          log("TP hit $" + list[i].symbol + " +" + tpPct() + "%");
-          await sellPosition(i);
-          return;
-        }
       } catch (e) {}
     }
     if (changed) { save(list); draw(); }
@@ -98,17 +92,6 @@
     ev.stopPropagation();
     sellPosition(Number(btn.dataset.sell));
   }, true);
-  ["tpPct", "autoTp"].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    var saved = localStorage.getItem("buon_" + id);
-    if (id === "autoTp") el.checked = saved === "1";
-    else if (saved) el.value = saved;
-    el.addEventListener("change", function () {
-      localStorage.setItem("buon_" + id, id === "autoTp" ? (el.checked ? "1" : "0") : el.value);
-    });
-  });
   draw();
   setInterval(tickMarks, 20000);
-  setTimeout(tickMarks, 2500);
 })();
