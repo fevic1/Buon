@@ -2,7 +2,6 @@
   var PUMP = "https://frontend-api-v3.pump.fun/coins?offset=0&limit=40&sort=market_cap&order=DESC&includeNsfw=false&complete=true";
   var DEX = "https://api.dexscreener.com/token-boosts/top/v1";
   var MIN_MC = 50000;
-
   function usd(n) {
     n = Number(n || 0);
     if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
@@ -15,7 +14,7 @@
       "<b>$" + t.symbol + "</b><span class=\"meta\">" + t.chain + " · graduated · " + usd(t.mc) + "</span>" + buy + "</div>";
   }
   function draw(list) {
-    var box = document.getElementById("crowdedList");
+    var box = document.getElementById("gradList") || document.getElementById("crowdedList");
     if (!box) return;
     if (!list.length) { box.innerHTML = "<div class=\"muted\">No graduated names passed the filter</div>"; return; }
     box.innerHTML = list.slice(0, 12).map(card).join("");
@@ -39,8 +38,8 @@
       var out = [];
       (Array.isArray(data) ? data : []).forEach(function (t) {
         var chain = String(t.chainId || "");
-        if (["solana", "base", "bsc", "ethereum", "monad"].indexOf(chain) < 0) return;
-        out.push({ symbol: (t.tokenName || t.description || "TOK").slice(0, 12), mint: t.tokenAddress, chain: chain, mc: 0, src: "dex" });
+        if (["solana", "base", "bsc", "ethereum"].indexOf(chain) < 0) return;
+        out.push({ symbol: String(t.description || "TOK").replace(/[^A-Za-z0-9]/g, "").slice(0, 10) || "TOK", mint: t.tokenAddress, chain: chain, mc: 0, src: "dex" });
       });
       return out;
     } catch (e) { return []; }
