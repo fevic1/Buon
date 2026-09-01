@@ -5,6 +5,7 @@
   const JQ = "https://lite-api.jup.ag/swap/v1/quote";
   const JS = "https://lite-api.jup.ag/swap/v1/swap";
   const RPC_KEY = "buon_rpc";
+  const CHAIN_ID = { ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56, robinhood: 4663, rh: 4663 };
   function normRpc(v) {
     v = String(v || "").trim();
     if (!v) return "";
@@ -34,10 +35,7 @@
     var rpc = document.getElementById("rpcUrl");
     if (rpc) {
       var n = normRpc(rpc.value);
-      if (n) {
-        rpc.value = n;
-        localStorage.setItem(RPC_KEY, n);
-      }
+      if (n) { rpc.value = n; localStorage.setItem(RPC_KEY, n); }
     }
     ["sizeUsd", "minAlert", "minOverlap", "tapeKey"].forEach(function (id) {
       var el = document.getElementById(id);
@@ -99,6 +97,31 @@
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
   function looksSol(mint) { return mint && !String(mint).startsWith("0x") && String(mint).length > 30; }
+  function isEvm(chain, mint) {
+    var c = String(chain || "").toLowerCase();
+    if (String(mint || "").startsWith("0x")) return true;
+    return !!(CHAIN_ID[c]);
+  }
+  async function evmBuy(mint, symbol, chain) {
+    var c = String(chain || "base").toLowerCase();
+    var cid = CHAIN_ID[c] || 8453;
+    var size = Number(document.getElementById("sizeUsd").value || 10);
+    var evm = state.evm || "";
+    log("$" + symbol + " is on " + c + ". That spend is EVM USDC, not Solana USDC.");
+    if (!evm) {
+      log("Use the Privy EVM address for Base / Ethereum / BNB. Robinhood needs that chain’s USDC too.");
+      return;
+    }
+    if (!String(mint || "").startsWith("0x")) {
+      log("No EVM mint on this tape line yet.");
+      return;
+    }
+    var url = "https://li.quest/v1/quote?fromChain=" + cid + "&toChain=" + cid + "&fromToken=USDC&toToken=" + mint + "&fromAmount=" + atoms(size) + "&fromAddress=" + evm;
+    var q = await fetch(url).then(function (r) { return r.json(); });
+    if (q.message || q.error) throw new Error(q.message || q.error || "no EVM route");
+    var out = q.estimate && q.estimate.toAmount;
+    log("Route on " + c + " via " + (q.tool || "DEX") + (out ? (" → " + out) : "") + ". Sign needs the Privy EVM key funded with USDC + gas on that chain.");
+  }
   async function solMint(mint, symbol) {
     if (looksSol(mint)) return mint;
     var q = String(symbol || "").replace(/^\$/, "");
@@ -110,11 +133,15 @@
     if (hit && hit.baseToken && hit.baseToken.address) return hit.baseToken.address;
     throw new Error("no Solana mint for $" + q);
   }
-  window.proposeBuy = window.deskBuy = async function (mint, symbol) {
+  window.proposeBuy = window.deskBuy = async function (mint, symbol, _auto, chain) {
+    if (isEvm(chain, mint)) {
+      try { await evmBuy(mint, symbol, chain); } catch (err) { log("Buy blocked: " + (err.message || err)); }
+      return;
+    }
     if (!state.wallet) await ensureWallet();
     await refreshBalance();
     var size = Number(document.getElementById("sizeUsd").value || 10);
-    if (!(state.cashUsdc >= size)) { log("Need " + size + " USDC, have " + Number(state.cashUsdc || 0).toFixed(2)); return; }
+    if (!(state.cashUsdc >= size)) { log("Need " + size + " Solana USDC, have " + Number(state.cashUsdc || 0).toFixed(2)); return; }
     if ((await rpc("getBalance", [state.wallet])).value < 5000) { log("Need ~0.02 SOL on this address for network fees"); return; }
     try {
       var outMint = await solMint(mint, symbol);
@@ -132,6 +159,8 @@
       refreshBalance();
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
-  document.getElementById("refreshBalTop").onclick = function () { refreshBalance(); };
-  document.getElementById("refreshBal").onclick = function () { refreshBalance(); };
+  var top = document.getElementById("refreshBalTop");
+  var bot = document.getElementById("refreshBal");
+  if (top) top.onclick = function () { refreshBalance(); };
+  if (bot) bot.onclick = function () { refreshBalance(); };
 })();
