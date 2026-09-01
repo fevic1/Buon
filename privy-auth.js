@@ -8,15 +8,18 @@ function pick(user, wallets) {
   var email = (user && user.email && user.email.address) || (user && user.google && user.google.email) || "";
   var evm = "";
   var sol = "";
+  ((user && user.linkedAccounts) || []).forEach(function (a) {
+    var t = String(a.chainType || a.chain || a.type || "").toLowerCase();
+    var addr = a.address || a.publicKey || "";
+    var embedded = String(a.walletClientType || a.connectorType || "").toLowerCase().indexOf("privy") >= 0 || a.type === "wallet";
+    if (!addr) return;
+    if (t.indexOf("sol") >= 0) sol = addr;
+    if ((t.indexOf("eth") >= 0 || t.indexOf("evm") >= 0 || addr.indexOf("0x") === 0) && embedded) evm = evm || addr;
+  });
   (wallets || []).forEach(function (w) {
     var addr = w.address || "";
-    if (addr.indexOf("0x") === 0) evm = addr;
-  });
-  ((user && user.linkedAccounts) || []).forEach(function (a) {
-    var t = String(a.chainType || a.chain || "").toLowerCase();
-    var addr = a.address || a.publicKey || "";
-    if (t.indexOf("sol") >= 0) sol = addr;
-    if (t.indexOf("eth") >= 0 || t.indexOf("evm") >= 0) evm = evm || addr;
+    var embedded = String(w.walletClientType || "").toLowerCase() === "privy";
+    if (embedded && addr.indexOf("0x") === 0) evm = evm || addr;
   });
   return { email: email, evm: evm, sol: sol };
 }
@@ -43,7 +46,7 @@ function Gate() {
     h("div", { className: "card", style: { width: "min(420px, 92vw)", margin: 0 } },
       h("p", { className: "kicker" }, "cash account"),
       h("h2", null, "Sign in"),
-      h("p", { className: "fine" }, "Google, X, Apple, or email. Wallets are created by Privy. The tape stays on this desk."),
+      h("p", { className: "fine" }, "Google, X, Apple, or email."),
       h("button", { className: "primary slim", onClick: function () { login(); } }, "Continue with Google / X / email")
     )
   );
@@ -56,9 +59,9 @@ function Root() {
       loginMethods: ["google", "twitter", "apple", "email"],
       appearance: { theme: "dark", accentColor: "#6b63f6" },
       embeddedWallets: {
-        ethereum: { createOnLogin: "all-users" },
-        solana: { createOnLogin: "all-users" },
-        createOnLogin: "all-users"
+        ethereum: { createOnLogin: "users-without-wallets" },
+        solana: { createOnLogin: "users-without-wallets" },
+        createOnLogin: "users-without-wallets"
       }
     }
   }, h(Gate));
