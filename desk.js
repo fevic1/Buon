@@ -71,9 +71,7 @@
       document.getElementById("gasAmt").textContent = "SOL gas " + sol.toFixed(4);
       document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
       document.getElementById("walletBals").innerHTML = "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + usdc.toFixed(2) + "</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
-    } catch (err) {
-      log("balance: " + (err.message || err));
-    }
+    } catch (err) { log("balance: " + (err.message || err)); }
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
   window.proposeBuy = async function (mint, symbol) {
@@ -86,11 +84,14 @@
       if (String(mint || "").startsWith("0x")) throw new Error("no Solana mint");
       var quote = await fetch(JQ + "?inputMint=" + USDC + "&outputMint=" + mint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
       if (!quote.outAmount) throw new Error(quote.error || "no quote");
+      var tokens = Number(quote.outAmount) / 1e6;
+      var entry = tokens ? size / tokens : 0;
       var swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
       if (!swap.swapTransaction) throw new Error("no swap tx");
       var tx = window.solanaWeb3.VersionedTransaction.deserialize(Uint8Array.from(atob(swap.swapTransaction), function (c) { return c.charCodeAt(0); }));
       var sig = await signAndSend(tx);
       log("signed $" + symbol + " · " + sig);
+      if (typeof recordPosition === "function") recordPosition({ mint: mint, symbol: symbol, usdIn: size, tokens: tokens, entry: entry, sig: sig });
       refreshBalance();
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
