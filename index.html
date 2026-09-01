@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=31" />
-  <link rel="stylesheet" href="./pulse.css?v=31" />
+  <link rel="stylesheet" href="./styles.css?v=32" />
+  <link rel="stylesheet" href="./pulse.css?v=32" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -50,6 +50,15 @@
           <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
           <label>Solana RPC URL<input id="rpcUrl" placeholder="https://mainnet.helius-rpc.com/?api-key=…" autocomplete="off" /></label>
           <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
+          <label>USDC hub
+            <select id="usdcHub">
+              <option value="base" selected>Base USDC</option>
+              <option value="arbitrum">Arbitrum USDC</option>
+              <option value="bsc">BNB USDC</option>
+              <option value="ethereum">Ethereum USDC</option>
+              <option value="solana">Solana USDC</option>
+            </select>
+          </label>
           <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
           <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
@@ -67,7 +76,7 @@
       <section class="stage">
         <div id="view-feed" class="view on"><div class="card-h tight"><h2>live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
         <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h legends</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
-        <div id="view-book" class="view"><div class="card-h tight"><h2>ranked book</h2><span class="quiet">overlap</span></div><div id="book" class="book"></div></div>
+        <div id="view-book" class="view"><div id="book" class="book"></div></div>
       </section>
       <aside class="rail">
         <div class="card"><div class="card-h"><h2>positions</h2></div><div id="posList" class="stack muted">No buys yet</div></div>
@@ -79,12 +88,12 @@
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <div class="toast" id="toast"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=31"></script>
-  <script src="./wallet.js?v=31"></script>
-  <script src="./privy.js?v=31"></script>
-  <script src="./desk.js?v=31"></script>
-  <script src="./positions.js?v=31"></script>
-  <script src="./live.js?v=31"></script>
-  <script src="./ui.js?v=31"></script>
+  <script src="./app.js?v=32"></script>
+  <script src="./wallet.js?v=32"></script>
+  <script src="./privy.js?v=32"></script>
+  <script src="./desk.js?v=32"></script>
+  <script src="./positions.js?v=32"></script>
+  <script src="./live.js?v=32"></script>
+  <script src="./ui.js?v=32"></script>
 </body>
 </html>
