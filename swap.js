@@ -133,6 +133,7 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     logLine("quoting $" + symbol + " Base USDC → " + toChain);
     var q = await relayQuote(toChain, mint, amount);
     logLine(q.tool + " route · " + q.txs.length + " step(s)");
+    var lastHash = "";
     for (var i = 0; i < q.txs.length; i++) {
       var tx = q.txs[i];
       if (tx.to && tx.to.toLowerCase() === USDC.toLowerCase() && String(tx.data || "").indexOf("0x095ea7b3") === 0) {
@@ -140,9 +141,12 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
         var have = await allowance(spender);
         if (have >= BigInt(amount)) { logLine("allowance ok"); continue; }
       }
-      await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
+      lastHash = await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
     }
     if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
+    if (typeof recordPosition === "function" && lastHash) {
+      recordPosition({ mint: mint, symbol: symbol, usdIn: size, chain: String(chain || ""), sig: lastHash });
+    }
     logLine("buy $" + symbol + " submitted");
   } catch (err) {
     logLine("swap: " + (err.message || err));
