@@ -2,17 +2,17 @@ import { Transaction } from "https://cdn.jsdelivr.net/npm/ethers@6.13.5/+esm";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
+const POOL_SOL = "8ZGuiQZzb6BMDeWjzPzowr6B839ftaJS15ihoscfqEk4";
 const RPC = {
   8453: ["https://mainnet.base.org", "https://base.llamarpc.com", "https://base.publicnode.com"],
   1: ["https://cloudflare-eth.com"],
-  56: ["https://bsc-dataseed.binance.org"],
-  4663: ["https://rpc.mainnet.chain.robinhood.com"]
+  56: ["https://bsc-dataseed.binance.org"]
 };
 const CHAIN = {
   ethereum: 1, eth: 1,
   base: 8453,
   bsc: 56, bnb: 56, binance: 56,
-  solana: 1151111081153331201, sol: 1151111081153331201,
+  solana: "SOL", sol: "SOL",
   robinhood: 4663, rh: 4663
 };
 
@@ -22,7 +22,7 @@ function destChain(chain, mint) {
   var c = String(chain || "").toLowerCase();
   if (CHAIN[c]) return CHAIN[c];
   if (String(mint || "").indexOf("0x") === 0) return 8453;
-  return 1151111081153331201;
+  return "SOL";
 }
 
 async function rpc(chainId, method, params) {
@@ -93,13 +93,14 @@ async function approve(spender, amount) {
   return signSend(8453, USDC, "0x095ea7b3" + sp + amt, 0);
 }
 
-async function lifiQuote(fromChain, toChain, toToken, amount, fromAddress) {
-  var url = "https://li.quest/v1/quote?fromChain=" + fromChain +
-    "&toChain=" + toChain +
+async function lifiQuote(toChain, toToken, amount, toAddress) {
+  var url = "https://li.quest/v1/quote?fromChain=8453" +
+    "&toChain=" + encodeURIComponent(toChain) +
     "&fromToken=" + USDC +
     "&toToken=" + encodeURIComponent(toToken) +
     "&fromAmount=" + amount +
-    "&fromAddress=" + fromAddress +
+    "&fromAddress=" + POOL +
+    (toAddress ? "&toAddress=" + encodeURIComponent(toAddress) : "") +
     "&slippage=0.03";
   var q = await fetch(url).then(function (r) { return r.json(); });
   if (q.message || q.error) throw new Error(q.message || q.error);
@@ -115,8 +116,9 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     var amount = String(Math.floor(size * 1e6));
     var toChain = destChain(chain, mint);
     if (!mint) throw new Error("no mint");
-    logLine("quoting $" + symbol + " Base→" + toChain + " for " + size + " USDC");
-    var q = await lifiQuote(8453, toChain, mint, amount, POOL);
+    var toAddr = String(toChain) === "SOL" ? POOL_SOL : POOL;
+    logLine("quoting $" + symbol + " Base USDC → " + toChain);
+    var q = await lifiQuote(toChain, mint, amount, toAddr);
     logLine((q.tool || "dex") + " route");
     var tx = q.transactionRequest;
     if (!tx || !tx.to || !tx.data) throw new Error("no executable route");
@@ -126,7 +128,7 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
       if (have < BigInt(amount)) await approve(spend, amount);
     }
     var hash = await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
-    if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || "base"), dest: mint, note: symbol });
+    if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
     logLine("buy $" + symbol + " " + hash);
   } catch (err) {
     logLine("swap: " + (err.message || err));
