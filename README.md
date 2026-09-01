@@ -8,44 +8,14 @@ Connect Phantom. Watch ranked wallets. Cluster identical coins. Sign your own Ju
 
 ## Use it
 
-1. Open the Pages URL (or `docs/index.html`).
+1. Open the Pages URL.
 2. Connect Phantom.
 3. Read the 24h leaderboard, live feed, identical-coin book, and potential book.
 4. Hit **Buy** on a Solana mint — Phantom pops, you sign.
 5. Optional: toggle “Propose Solana buys on crowded / potential”. Still requires a wallet popup each time.
 
-## GitHub Pages (one-time click)
+## GitHub Pages
 
-Repo Settings → Pages → Source: **GitHub Actions**.
+Settings → Pages → Deploy from a branch → `main` / `/ (root)` → Save.
 
-Or: Settings → Pages → Deploy from branch → `main` / `/docs`.
-
-## Tree
-
-```
-Buon/
-├── README.md
-├── .env.example
-├── .gitignore
-├── requirements.txt
-├── .github/
-│   └── workflows/
-│       └── pages.yml
-├── docs/
-│   ├── index.html      # desk UI
-│   ├── styles.css
-│   └── app.js          # tape + wallet
-└── src/
-    ├── __init__.py
-    ├── __main__.py
-    ├── config.py
-    ├── tape.py         # read-only market tape
-    ├── ranker.py
-    └── monitor.py
-```
-
-Optional local monitor:
-
-```
-PYTHONPATH=. python -m src
-```
+The desk is `index.html` at the repo root. Wait a minute after each push, then hard-refresh the site.
