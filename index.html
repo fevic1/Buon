@@ -33,9 +33,9 @@
   <main class="shell">
     <section class="hero-strip">
       <div>
-        <p class="kicker">buon desk · ranked wallets · signed swaps</p>
+        <p class="kicker">buon desk · ranked wallets · USDC cash</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Click a trader or a coin. Tune the desk on the left. Phantom still signs every buy.</p>
+        <p class="sub">One cash unit: USDC. Buys spend cash, not SOL/ETH/BNB. Phantom still signs on this page.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -50,7 +50,7 @@
             <h2>desk</h2>
             <span class="dot" id="liveDot"></span>
           </div>
-          <label>Size per buy (USD)
+          <label>Size per buy (USDC)
             <input type="number" id="sizeUsd" min="1" max="500" value="20" />
           </label>
           <label>Min alert (USD)
@@ -61,9 +61,9 @@
           </label>
           <label class="toggle">
             <input type="checkbox" id="autoBuy" />
-            <span>Propose Solana buys on crowded / potential</span>
+            <span>Propose USDC buys on crowded / potential</span>
           </label>
-          <p class="fine">Auto never bypasses your wallet. Phantom still pops for every swap.</p>
+          <p class="fine">Cash is USDC. Solana buys spend USDC, not SOL. Other networks try a cash route. Phantom still signs.</p>
           <label>Tape key (optional, for full books)
             <input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" />
           </label>
@@ -117,7 +117,7 @@
     <aside class="sheet" id="sheet"></aside>
   </div>
   <footer class="foot">
-    Click a trader for their tape book. Click a coin to inspect and buy. Buon does not custody funds.
+    Click a trader or a coin. Buys spend USDC cash. Buon does not custody funds.
   </footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
   <script src="./app.js"></script>
