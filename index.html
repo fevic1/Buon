@@ -4,15 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>Buon — cash account</title>
-  <link rel="stylesheet" href="./styles.css?v=13" />
-  <link rel="stylesheet" href="./pulse.css?v=13" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <title>Buon cash v21</title>
+  <link rel="stylesheet" href="./styles.css?v=21" />
+  <link rel="stylesheet" href="./pulse.css?v=21" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="sky"></div>
   <header class="nav">
-    <div class="brand"><span class="word">buon</span><span class="badge">desk</span></div>
+    <div class="brand"><span class="word">buon</span><span class="badge">v21</span></div>
     <nav class="tabs" id="tabs">
       <button class="tab on" data-view="feed">feed</button>
       <button class="tab" data-view="leaders">leaderboard</button>
@@ -27,8 +28,8 @@
   <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
-      <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Send code, then Open cash account.</div></div>
+      <div><p class="kicker">cash account v21</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Opening cash account…</div></div>
       <div>
         <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
         <button class="ghost slim" id="wipeBtn" type="button">Wipe local</button>
@@ -36,9 +37,9 @@
     </section>
     <section class="hero-strip">
       <div>
-        <p class="kicker">live wallet</p>
+        <p class="kicker">spend wallet is the SOL address above</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Public Solana RPCs are blocked from this site. Paste a Helius RPC to read cash.</p>
+        <p class="sub">If you do not see v21 in the badge, this tab is cached. Open a new incognito window.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -50,12 +51,6 @@
       <aside class="rail">
         <div class="card">
           <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
-          <label>Privy App ID<input id="privyAppId" autocomplete="off" /></label>
-          <label>Privy Client ID<input id="privyClientId" autocomplete="off" /></label>
-          <label>Email<input id="privyEmail" type="email" autocomplete="off" /></label>
-          <label>Code<input id="privyCode" inputmode="numeric" autocomplete="off" /></label>
-          <button class="ghost slim" id="privySend" type="button" onclick="sendPrivyCode()">Send code</button>
-          <button class="primary slim" id="privyGo" type="button" onclick="verifyPrivyCode()">Open cash account</button>
           <label>Solana RPC URL<input id="rpcUrl" placeholder="https://mainnet.helius-rpc.com/?api-key=..." autocomplete="off" /></label>
           <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
@@ -63,7 +58,7 @@
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
           <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">Waiting for Privy login</div>
+            <div class="w-addr" id="walletAddr">opening…</div>
             <div class="bals" id="walletBals"></div>
             <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
           </div>
@@ -77,19 +72,19 @@
       </section>
       <aside class="rail">
         <div class="card"><div class="card-h"><h2>potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
-        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="log" class="log muted">Desk booted.</div></div>
+        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="log" class="log muted">Desk v21.</div></div>
       </aside>
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <div class="toast show" id="toast">Paste a Helius RPC to read cash.</div>
-  <footer class="foot">PublicNode now requires a token. Use Helius.</footer>
+  <div class="toast show" id="toast">v21 — cash account opens on load</div>
+  <footer class="foot">v21</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=13"></script>
-  <script src="./wallet.js?v=13"></script>
-  <script src="./privy.js?v=13"></script>
-  <script src="./desk.js?v=13"></script>
-  <script src="./live.js?v=13"></script>
-  <script src="./ui.js?v=13"></script>
+  <script src="./app.js?v=21"></script>
+  <script src="./wallet.js?v=21"></script>
+  <script src="./privy.js?v=21"></script>
+  <script src="./desk.js?v=21"></script>
+  <script src="./live.js?v=21"></script>
+  <script src="./ui.js?v=21"></script>
 </body>
 </html>
