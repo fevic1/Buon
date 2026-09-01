@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buon Privy</title>
+  <title>Buon</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
   <style>
     :root { --bg:#070711; --card:#12121c; --line:rgba(203,208,235,.12); --text:#eaedff; --muted:#9aa3c7; --accent:#6b63f6; }
@@ -20,6 +20,7 @@
     .copy { word-break: break-all; font-family: ui-monospace, monospace; font-size: 13px; }
     .fine, .meta, .sub, .muted { color: var(--muted); font-size: 13px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
     @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
     button { cursor: pointer; border: 0; }
     .primary, .ghost { border-radius: 999px; padding: 10px 14px; font-weight: 650; }
@@ -27,12 +28,12 @@
     .ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
     .slim { padding: 8px 12px; font-size: 12px; }
     .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 12px; margin-right: 8px; }
-    .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1b1b2b; border: 1px solid var(--line); padding: 10px 14px; border-radius: 12px; }
+    .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1b1b2b; border: 1px solid var(--line); padding: 10px 14px; border-radius: 12px; max-width: 90%; }
   </style>
 </head>
 <body>
-  <div class="shell"><div id="root">Loading Privy SDK…</div></div>
+  <div class="shell"><div id="root">Starting…</div></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script type="module" src="./privy-app.js?v=27"></script>
+  <script type="module" src="./privy-app.js?v=28"></script>
 </body>
 </html>
