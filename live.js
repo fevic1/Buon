@@ -1,8 +1,9 @@
 (function () {
+  var fails = 0;
   function tick() {
-    if (window.state && state.wallet && typeof refreshBalance === "function") {
-      refreshBalance().catch(function () {});
-    }
+    if (!window.state || !state.wallet || typeof refreshBalance !== "function") return;
+    if (fails > 3) return;
+    refreshBalance().then(function () { fails = 0; }).catch(function () { fails += 1; });
   }
   function hookPhantom() {
     var p = window.solana;
@@ -11,19 +12,16 @@
     if (typeof p.on === "function") {
       p.on("accountChanged", function (pk) {
         if (!pk) {
-          state.wallet = null;
-          document.getElementById("connectBtn").textContent = "Connect wallet";
-          document.getElementById("cashAmt").textContent = "— USDC";
+          if (typeof disconnectWallet === "function") disconnectWallet();
           return;
         }
         state.wallet = pk.toString();
         document.getElementById("connectBtn").textContent = "Connected";
+        fails = 0;
         tick();
       });
-      p.on("connect", function () { tick(); });
       p.on("disconnect", function () {
-        state.wallet = null;
-        document.getElementById("connectBtn").textContent = "Connect wallet";
+        if (typeof disconnectWallet === "function") disconnectWallet();
       });
     }
     return p;
@@ -35,16 +33,16 @@
     p.connect({ onlyIfTrusted: true }).then(function (res) {
       state.wallet = res.publicKey.toString();
       document.getElementById("connectBtn").textContent = "Connected";
+      fails = 0;
       return refreshBalance();
     }).catch(function () {});
   }
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) tick();
+    if (!document.hidden) { fails = 0; tick(); }
   });
-  window.addEventListener("focus", tick);
-  setInterval(tick, 12000);
+  window.addEventListener("focus", function () { fails = 0; tick(); });
+  setInterval(tick, 20000);
   window.addEventListener("load", boot);
-  setTimeout(boot, 300);
-  setTimeout(boot, 1200);
-  setTimeout(boot, 3000);
+  setTimeout(boot, 400);
+  setTimeout(boot, 1600);
 })();
