@@ -4,10 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
   <title>Buon cash v21</title>
-  <link rel="stylesheet" href="./styles.css?v=21" />
-  <link rel="stylesheet" href="./pulse.css?v=21" />
+  <link rel="stylesheet" href="./styles.css?v=22" />
+  <link rel="stylesheet" href="./pulse.css?v=22" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -28,10 +27,11 @@
   <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
-      <div><p class="kicker">cash account v21</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
+      <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
       <div class="addr-list" id="addrList"><div class="meta">Opening cash account…</div></div>
       <div>
         <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
+        <button class="ghost slim" id="exportBtn" type="button">Export key</button>
         <button class="ghost slim" id="wipeBtn" type="button">Wipe local</button>
       </div>
     </section>
@@ -39,7 +39,7 @@
       <div>
         <p class="kicker">spend wallet is the SOL address above</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">If you do not see v21 in the badge, this tab is cached. Open a new incognito window.</p>
+        <p class="sub">Network fee is SOL. Buys spend USDC. Export the key before you fund the address.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -77,14 +77,14 @@
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <div class="toast show" id="toast">v21 — cash account opens on load</div>
+  <div class="toast show" id="toast">Export key before funding</div>
   <footer class="foot">v21</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=21"></script>
-  <script src="./wallet.js?v=21"></script>
-  <script src="./privy.js?v=21"></script>
-  <script src="./desk.js?v=21"></script>
-  <script src="./live.js?v=21"></script>
-  <script src="./ui.js?v=21"></script>
+  <script src="./app.js?v=22"></script>
+  <script src="./wallet.js?v=22"></script>
+  <script src="./privy.js?v=22"></script>
+  <script src="./desk.js?v=22"></script>
+  <script src="./live.js?v=22"></script>
+  <script src="./ui.js?v=22"></script>
 </body>
 </html>
