@@ -1,13 +1,11 @@
 (function () {
   const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
   const BASE_RPCS = [
-    "https://mainnet.base.org",
-    "https://base.llamarpc.com",
     "https://base.publicnode.com",
+    "https://mainnet.base.org",
     "https://1rpc.io/base",
     "https://base.drpc.org"
   ];
-  const CHAIN_ID = { ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56, robinhood: 4663, rh: 4663 };
   const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
   const LAST = "buon_pool_last";
   function loadCreds() {
@@ -55,21 +53,7 @@
     try {
       var base = await baseUsdc(pool);
       paintCash(base, true);
-    } catch (err) {
-      log("pool rpc busy — using last " + Number(state.cashUsdc || 0).toFixed(2));
-    }
-  };
-  function isEvm(chain, mint) {
-    var c = String(chain || "").toLowerCase();
-    if (String(mint || "").startsWith("0x")) return true;
-    return !!(CHAIN_ID[c]);
-  }
-  window.proposeBuy = window.deskBuy = async function (mint, symbol, _auto, chain) {
-    await refreshBalance();
-    var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
-    if (!(state.cashUsdc >= size)) { log("Pool needs " + size + " USDC (showing " + Number(state.cashUsdc || 0).toFixed(2) + ")"); return; }
-    if (!window.BUON_TK) { log("Turnkey not ready"); return; }
-    log(isEvm(chain, mint) ? ("Ready to spend pool on $" + symbol) : ("Ready after Base→Solana hop for $" + symbol));
+    } catch (err) {}
   };
   window.openSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = false; };
   window.closeSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = true; };
@@ -82,4 +66,5 @@
   var bot = document.getElementById("refreshBal");
   if (bot) bot.onclick = function () { refreshBalance(); };
   refreshBalance();
+  setInterval(refreshBalance, 6000);
 })();
