@@ -39,10 +39,7 @@
     }
     window.addEventListener("error", function (e) { fail(e.message || e.error || e); });
     window.addEventListener("unhandledrejection", function (e) { fail(e.reason && e.reason.message ? e.reason.message : e.reason); });
-    setTimeout(function () {
-      if (document.getElementById("root").textContent.indexOf("Loading Privy") >= 0) fail("Timed out. Hard refresh this tab.");
-    }, 20000);
   </script>
-  <script type="module" src="./privy-app.js?v=25"></script>
+  <script type="module" src="./privy-app.js?v=26"></script>
 </body>
 </html>
