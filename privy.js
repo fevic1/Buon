@@ -1,4 +1,5 @@
 (function () {
+  const DEFAULT_APP = "cmtid3972041k0cl7b7xyt0xs";
   const APP_KEY = "buon_privy_app";
   const CLIENT_KEY = "buon_privy_client";
   const EMAIL_KEY = "buon_privy_email";
@@ -7,7 +8,7 @@
 
   function val(id) { var el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; }
   function saveIds() {
-    localStorage.setItem(APP_KEY, val("privyAppId"));
+    localStorage.setItem(APP_KEY, val("privyAppId") || DEFAULT_APP);
     localStorage.setItem(CLIENT_KEY, val("privyClientId"));
     localStorage.setItem(EMAIL_KEY, val("privyEmail"));
   }
@@ -15,7 +16,7 @@
     var a = document.getElementById("privyAppId");
     var c = document.getElementById("privyClientId");
     var e = document.getElementById("privyEmail");
-    if (a && !a.value) a.value = localStorage.getItem(APP_KEY) || "";
+    if (a && !a.value) a.value = localStorage.getItem(APP_KEY) || DEFAULT_APP;
     if (c && !c.value) c.value = localStorage.getItem(CLIENT_KEY) || "";
     if (e && !e.value) e.value = localStorage.getItem(EMAIL_KEY) || "";
   }
@@ -27,7 +28,7 @@
   async function client() {
     if (privy) return privy;
     saveIds();
-    var appId = val("privyAppId") || localStorage.getItem(APP_KEY);
+    var appId = val("privyAppId") || localStorage.getItem(APP_KEY) || DEFAULT_APP;
     var clientId = val("privyClientId") || localStorage.getItem(CLIENT_KEY);
     if (!appId) throw new Error("Paste the Privy App ID first");
     var mod = await loadSdk();
