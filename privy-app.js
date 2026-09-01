@@ -1,20 +1,22 @@
-import { createElement as h, useEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
-import { PrivyProvider, usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
+import { createElement as h, useState } from "https://esm.sh/react@18.3.1";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+import { PrivyProvider, usePrivy, useWallets, useCreateWallet } from "https://esm.sh/@privy-io/react-auth@3.39.0?deps=react@18.3.1,react-dom@18.3.1";
 
 const APP_ID = "cmtid3972041k0cl7b7xyt0xs";
 
 function Desk() {
   const { ready, authenticated, user, login, logout } = usePrivy();
-  const { wallets } = useWallets();
-  const createWallet = useCreateWallet();
+  const walletState = useWallets();
+  const wallets = walletState.wallets || [];
+  const creator = useCreateWallet();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
   const email = user && user.email && user.email.address;
-  const evm = (wallets || []).find(function (w) { return w.walletClientType === "privy"; }) || (wallets || [])[0];
+  const evm = wallets.find(function (w) { return w.walletClientType === "privy"; }) || wallets[0];
   const linked = (user && user.linkedAccounts) || [];
-  const sol = linked.find(function (a) { return a.type === "wallet" && (a.chainType === "solana" || a.chain === "solana"); });
+  const sol = linked.find(function (a) {
+    return a.type === "wallet" && String(a.chainType || a.chain || "").toLowerCase().indexOf("sol") >= 0;
+  });
   const solAddr = (sol && (sol.address || sol.publicKey)) || "";
   const ethAddr = (evm && evm.address) || "";
 
@@ -22,13 +24,8 @@ function Desk() {
     setBusy(true);
     setNote("Asking Privy to create embedded wallets");
     try {
-      if (createWallet && createWallet.createWallet) {
-        await createWallet.createWallet({ createAdditional: false });
-      }
-      if (createWallet && createWallet.createSolanaWallet) {
-        await createWallet.createSolanaWallet();
-      }
-      setNote("Privy wallet request sent. If an address is still blank, create wallets is off in the dashboard.");
+      if (creator && creator.createWallet) await creator.createWallet();
+      setNote("Privy wallet request sent.");
     } catch (e) {
       setNote(e.message || String(e));
     }
@@ -36,12 +33,11 @@ function Desk() {
   }
 
   function copy(v) {
-    if (!v) return;
     navigator.clipboard.writeText(v);
-    setNote("Copied " + v);
+    setNote("Copied");
   }
 
-  if (!ready) return h("p", { className: "muted" }, "Loading Privy SDK…");
+  if (!ready) return h("p", { className: "muted" }, "Privy session starting…");
 
   return h("div", null,
     h("header", { className: "nav" },
@@ -51,8 +47,7 @@ function Desk() {
           ? h("span", null,
               h("span", { className: "pill" }, email || "signed in"),
               " ",
-              h("button", { className: "ghost", onClick: logout }, "Log out")
-            )
+              h("button", { className: "ghost", onClick: logout }, "Log out"))
           : h("button", { className: "primary", onClick: login }, "Sign in with Privy")
       )
     ),
@@ -69,13 +64,13 @@ function Desk() {
               h("h2", null, "Solana"),
               h("p", { className: "copy" }, solAddr || "not created yet"),
               solAddr ? h("button", { className: "ghost slim", onClick: function () { copy(solAddr); } }, "Copy SOL") : null,
-              h("p", { className: "fine" }, "This is the Privy Solana embedded wallet. Fund it with Solana USDC + SOL.")
+              h("p", { className: "fine" }, "Privy Solana embedded wallet.")
             ),
             h("article", { className: "card" },
               h("h2", null, "Ethereum / EVM"),
               h("p", { className: "copy" }, ethAddr || "not created yet"),
               ethAddr ? h("button", { className: "ghost slim", onClick: function () { copy(ethAddr); } }, "Copy ETH") : null,
-              h("p", { className: "fine" }, "Privy EVM embedded wallet. Same address on Ethereum, Base, and other EVM chains. Each chain needs its own USDC and gas.")
+              h("p", { className: "fine" }, "Privy EVM embedded wallet. Same address on Ethereum and L2s.")
             )
           )
         )
