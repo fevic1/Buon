@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Buon — cash account</title>
-  <link rel="stylesheet" href="./styles.css?v=9" />
+  <link rel="stylesheet" href="./styles.css?v=10" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -27,18 +27,18 @@
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
       <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Create a cash account. Deposit Solana USDC to the address it shows.</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Log in with Privy. Deposit Solana USDC to the address it shows.</div></div>
       <div>
         <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
-        <button class="ghost slim" id="exportBtn" type="button">Export key</button>
-        <button class="ghost slim" id="wipeBtn" type="button">Wipe account</button>
+        <button class="ghost slim" id="exportBtn" type="button">Export local key</button>
+        <button class="ghost slim" id="wipeBtn" type="button">Wipe local</button>
       </div>
     </section>
     <section class="hero-strip">
       <div>
-        <p class="kicker">in-app cash account · USDC</p>
+        <p class="kicker">Privy cash account · USDC</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Same model as the social desk: an internal cash account, USDC in, signed buys out. Phantom is not the trader.</p>
+        <p class="sub">Paste your Privy App ID. Allow origin https://fevic1.github.io in the Privy dashboard. Email code opens the cash account.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -50,14 +50,20 @@
       <aside class="rail">
         <div class="card">
           <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
+          <label>Privy App ID<input id="privyAppId" placeholder="clxxxxxxxx" autocomplete="off" /></label>
+          <label>Privy Client ID<input id="privyClientId" placeholder="client-..." autocomplete="off" /></label>
+          <label>Email<input id="privyEmail" type="email" placeholder="you@email" autocomplete="off" /></label>
+          <label>Code<input id="privyCode" placeholder="6-digit code" autocomplete="off" /></label>
+          <button class="ghost slim" id="privySend" type="button">Send code</button>
+          <button class="primary slim" id="privyGo" type="button">Open cash account</button>
           <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
           <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <p class="fine">Send Circle USDC on Solana to the cash account address. Keep a little SOL for rent.</p>
+          <p class="fine">Dashboard: enable Email + Solana embedded wallets. Allowed origin: https://fevic1.github.io</p>
           <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">Cash account lives in this browser</div>
+            <div class="w-addr" id="walletAddr">Privy holds the key. Local generate is fallback only.</div>
             <div class="bals" id="walletBals"></div>
             <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
           </div>
@@ -76,11 +82,12 @@
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <footer class="foot">Internal cash account signs here. Not Phantom.</footer>
+  <footer class="foot">Privy cash account. Add this origin in the dashboard.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=9"></script>
-  <script src="./wallet.js?v=9"></script>
-  <script src="./desk.js?v=9"></script>
-  <script src="./live.js?v=9"></script>
+  <script src="./app.js?v=10"></script>
+  <script src="./wallet.js?v=10"></script>
+  <script src="./privy.js?v=10"></script>
+  <script src="./desk.js?v=10"></script>
+  <script src="./live.js?v=10"></script>
 </body>
 </html>
