@@ -32,14 +32,7 @@
 </head>
 <body>
   <div class="shell"><div id="root">Loading Privy SDK…</div></div>
-  <script>
-    function fail(msg) {
-      var el = document.getElementById("root");
-      if (el) el.innerHTML = "<section class='card'><p class='kicker'>boot</p><h1>Privy SDK failed to load</h1><p class='copy'>" + String(msg) + "</p></section>";
-    }
-    window.addEventListener("error", function (e) { fail(e.message || e.error || e); });
-    window.addEventListener("unhandledrejection", function (e) { fail(e.reason && e.reason.message ? e.reason.message : e.reason); });
-  </script>
-  <script type="module" src="./privy-app.js?v=26"></script>
+  <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+  <script type="module" src="./privy-app.js?v=27"></script>
 </body>
 </html>
