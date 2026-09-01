@@ -12,7 +12,7 @@ const CHAIN = {
   ethereum: 1, eth: 1,
   base: 8453,
   bsc: 56, bnb: 56, binance: 56,
-  solana: "SOL", sol: "SOL",
+  solana: 792703809, sol: 792703809,
   robinhood: 4663, rh: 4663
 };
 
@@ -22,7 +22,7 @@ function destChain(chain, mint) {
   var c = String(chain || "").toLowerCase();
   if (CHAIN[c]) return CHAIN[c];
   if (String(mint || "").indexOf("0x") === 0) return 8453;
-  return "SOL";
+  return 792703809;
 }
 
 async function rpc(chainId, method, params) {
@@ -93,18 +93,32 @@ async function approve(spender, amount) {
   return signSend(8453, USDC, "0x095ea7b3" + sp + amt, 0);
 }
 
-async function lifiQuote(toChain, toToken, amount, toAddress) {
-  var url = "https://li.quest/v1/quote?fromChain=8453" +
-    "&toChain=" + encodeURIComponent(toChain) +
-    "&fromToken=" + USDC +
-    "&toToken=" + encodeURIComponent(toToken) +
-    "&fromAmount=" + amount +
-    "&fromAddress=" + POOL +
-    (toAddress ? "&toAddress=" + encodeURIComponent(toAddress) : "") +
-    "&slippage=0.03";
-  var q = await fetch(url).then(function (r) { return r.json(); });
+async function relayQuote(toChain, toToken, amount) {
+  var body = {
+    user: POOL,
+    originChainId: 8453,
+    originCurrency: USDC,
+    destinationChainId: toChain,
+    destinationCurrency: toToken,
+    amount: amount,
+    tradeType: "EXACT_INPUT"
+  };
+  if (Number(toChain) === 792703809) body.recipient = POOL_SOL;
+  var res = await fetch("https://api.relay.link/quote/v2", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  var q = await res.json();
   if (q.message || q.error) throw new Error(q.message || q.error);
-  return q;
+  var txs = [];
+  (q.steps || []).forEach(function (s) {
+    (s.items || []).forEach(function (it) {
+      if (it.data && it.data.to && it.data.data) txs.push(it.data);
+    });
+  });
+  if (!txs.length) throw new Error("Relay returned no tx");
+  return { tool: "relay", txs: txs };
 }
 
 window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain) {
@@ -116,20 +130,20 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     var amount = String(Math.floor(size * 1e6));
     var toChain = destChain(chain, mint);
     if (!mint) throw new Error("no mint");
-    var toAddr = String(toChain) === "SOL" ? POOL_SOL : POOL;
     logLine("quoting $" + symbol + " Base USDC → " + toChain);
-    var q = await lifiQuote(toChain, mint, amount, toAddr);
-    logLine((q.tool || "dex") + " route");
-    var tx = q.transactionRequest;
-    if (!tx || !tx.to || !tx.data) throw new Error("no executable route");
-    var spend = q.estimate && q.estimate.approvalAddress;
-    if (spend) {
-      var have = await allowance(spend);
-      if (have < BigInt(amount)) await approve(spend, amount);
+    var q = await relayQuote(toChain, mint, amount);
+    logLine(q.tool + " route · " + q.txs.length + " step(s)");
+    for (var i = 0; i < q.txs.length; i++) {
+      var tx = q.txs[i];
+      if (tx.to && tx.to.toLowerCase() === USDC.toLowerCase() && String(tx.data || "").indexOf("0x095ea7b3") === 0) {
+        var spender = "0x" + String(tx.data).slice(34, 74);
+        var have = await allowance(spender);
+        if (have >= BigInt(amount)) { logLine("allowance ok"); continue; }
+      }
+      await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
     }
-    var hash = await signSend(Number(tx.chainId || 8453), tx.to, tx.data, tx.value || 0);
     if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
-    logLine("buy $" + symbol + " " + hash);
+    logLine("buy $" + symbol + " submitted");
   } catch (err) {
     logLine("swap: " + (err.message || err));
   }
