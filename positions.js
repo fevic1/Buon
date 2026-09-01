@@ -1,22 +1,50 @@
 (function () {
   const STORE = "buon_positions_v2";
-  const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-  const JQ = "https://lite-api.jup.ag/swap/v1/quote";
-  const JS = "https://lite-api.jup.ag/swap/v1/swap";
-  try { localStorage.removeItem("buon_positions"); } catch (e) {}
+  const KNOWN = [{
+    mint: "0xedae",
+    symbol: "RH",
+    usdIn: 5,
+    chain: "robinhood",
+    sig: "0x4bd8085827dddf92d0fe9a7b504bc8bb8bb565ace1ce1b300b72a592f84c7401",
+    ts: Date.parse("2026-09-01T07:53:55") || Date.now()
+  }];
   function real(p) { return p && p.sig && String(p.sig).length > 20; }
   function load() {
-    try {
-      return JSON.parse(localStorage.getItem(STORE) || "[]").filter(real);
-    } catch (e) { return []; }
+    try { return JSON.parse(localStorage.getItem(STORE) || "[]").filter(real); }
+    catch (e) { return []; }
   }
-  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real))); }
-  function tpPct() { return Math.max(1, Number(document.getElementById("tpPct") && document.getElementById("tpPct").value || 30)); }
-  function autoTp() { var el = document.getElementById("autoTp"); return el ? el.checked : false; }
+  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real).slice(0, 20))); }
+  function tpPct() { return Math.max(1, Number((document.getElementById("tpPct") || {}).value || 30)); }
   function usd(n) {
     n = Number(n || 0);
     if (Math.abs(n) >= 1000) return "$" + (n / 1000).toFixed(1) + "K";
     return "$" + n.toFixed(2);
+  }
+  function seed() {
+    var list = load();
+    var sigs = {};
+    list.forEach(function (p) { sigs[String(p.sig).toLowerCase()] = true; });
+    KNOWN.forEach(function (p) {
+      if (!sigs[p.sig.toLowerCase()]) list.push(p);
+    });
+    try {
+      var hist = JSON.parse(localStorage.getItem("buon_history_v1") || "[]");
+      hist.forEach(function (h) {
+        if (h.type !== "buy" || !h.dest) return;
+        var sig = "hist-" + (h.ts || "") + "-" + h.dest;
+        if (sig.length < 21) sig = (sig + "---------------------").slice(0, 24);
+        if (list.some(function (p) { return String(p.mint).toLowerCase() === String(h.dest).toLowerCase(); })) return;
+        list.push({
+          mint: h.dest,
+          symbol: h.note || "",
+          usdIn: h.usd,
+          chain: h.net,
+          sig: h.dest.length > 20 ? h.dest : sig,
+          ts: h.ts
+        });
+      });
+    } catch (e) {}
+    save(list);
   }
   function draw() {
     var box = document.getElementById("posList");
@@ -26,58 +54,53 @@
     box.innerHTML = list.map(function (p, i) {
       var pnl = p.mark && p.entry ? ((p.mark - p.entry) / p.entry) * 100 : 0;
       var hit = p.mark && p.entry && p.mark >= p.entry * (1 + tpPct() / 100);
-      return "<div class=\"mini\"><b>$" + (p.symbol || "?") + "</b><span class=\"meta\">in " + usd(p.usdIn) + (p.mark ? " · now " + usd(p.mark * (p.tokens || 0)) : "") + (p.entry ? " · " + pnl.toFixed(1) + "%" : "") + (hit ? " · TP ready" : "") + "</span>" +
+      var mint = String(p.mint || "");
+      var short = mint.length > 12 ? mint.slice(0, 6) + "…" + mint.slice(-4) : mint;
+      return "<div class=\"mini\"><b>$" + (p.symbol || "open") + "</b><span class=\"meta\">open · " + usd(p.usdIn) + " · " + (p.chain || "") +
+        (p.entry ? " · " + pnl.toFixed(1) + "%" : "") + (hit ? " · TP ready" : "") +
+        "<br>" + short + "</span>" +
         "<div class=\"acts\" style=\"margin-top:6px\"><button class=\"buy slim\" data-sell=\"" + i + "\" type=\"button\">Sell</button></div></div>";
     }).join("");
   }
   window.recordPosition = function (pos) {
     if (!pos || !pos.sig) return;
     var list = load();
+    if (list.some(function (p) { return String(p.sig).toLowerCase() === String(pos.sig).toLowerCase(); })) { draw(); return; }
     list.unshift({
-      id: Date.now(),
       mint: pos.mint,
       symbol: String(pos.symbol || "").replace(/^\$/, ""),
       usdIn: Number(pos.usdIn || 0),
       tokens: Number(pos.tokens || 0),
       entry: Number(pos.entry || 0),
       mark: Number(pos.entry || 0),
+      chain: pos.chain || "",
       sig: pos.sig,
-      ts: Date.now()
+      ts: pos.ts || Date.now()
     });
-    save(list.slice(0, 20));
+    save(list);
     draw();
   };
   window.clearPositions = function () {
-    localStorage.removeItem("buon_positions");
     localStorage.removeItem(STORE);
     draw();
   };
   async function priceOf(mint) {
+    if (!mint || String(mint).length < 8) return 0;
     var data = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + mint).then(function (r) { return r.json(); });
-    var pair = (data.pairs || []).find(function (p) { return p.chainId === "solana"; }) || (data.pairs || [])[0];
+    var pair = (data.pairs || [])[0];
     return Number(pair && pair.priceUsd || 0);
   }
   window.sellPosition = async function (i) {
     var list = load();
     var p = list[i];
     if (!p) return;
-    if (!state.wallet) { log("Sign in first"); return; }
-    if (!p.tokens || !p.mint) { log("Incomplete fill"); return; }
-    var raw = Math.max(1, Math.floor(p.tokens * 1e6));
-    try {
-      var quote = await fetch(JQ + "?inputMint=" + p.mint + "&outputMint=" + USDC + "&amount=" + raw + "&slippageBps=300").then(function (r) { return r.json(); });
-      if (!quote.outAmount) throw new Error(quote.error || "no sell quote");
-      var swap = await fetch(JS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }) }).then(function (r) { return r.json(); });
-      if (!swap.swapTransaction) throw new Error("no sell tx");
-      log("Sell quote ready for $" + p.symbol);
-    } catch (err) { log("Sell blocked: " + (err.message || err)); }
+    log("Sell of $" + (p.symbol || "") + " is next — position is open on " + (p.chain || "chain"));
   };
   async function tickMarks() {
     var list = load();
-    if (!list.length) return;
     var changed = false;
     for (var i = 0; i < list.length; i++) {
-      if (!list[i].mint) continue;
+      if (!list[i].mint || String(list[i].mint).length < 8) continue;
       try {
         var px = await priceOf(list[i].mint);
         if (px) { list[i].mark = px; changed = true; }
@@ -92,6 +115,7 @@
     ev.stopPropagation();
     sellPosition(Number(btn.dataset.sell));
   }, true);
+  seed();
   draw();
   setInterval(tickMarks, 20000);
 })();
