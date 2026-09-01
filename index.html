@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=32" />
-  <link rel="stylesheet" href="./pulse.css?v=32" />
+  <link rel="stylesheet" href="./styles.css?v=33" />
+  <link rel="stylesheet" href="./pulse.css?v=33" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -27,7 +27,7 @@
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
       <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Sign in to show wallets</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Sign in with Google, X, Apple, or email</div></div>
       <div>
         <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
       </div>
@@ -36,7 +36,7 @@
       <div>
         <p class="kicker">ranked tape</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Pick the USDC hub first. DLN spends that mint.</p>
+        <p class="sub">Sign in is Privy. The tape is this desk.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -87,13 +87,14 @@
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <div class="toast" id="toast"></div>
+  <div id="auth-root"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=32"></script>
-  <script src="./wallet.js?v=32"></script>
-  <script src="./privy.js?v=32"></script>
-  <script src="./desk.js?v=32"></script>
-  <script src="./positions.js?v=32"></script>
-  <script src="./live.js?v=32"></script>
-  <script src="./ui.js?v=32"></script>
+  <script src="./app.js?v=33"></script>
+  <script src="./wallet.js?v=33"></script>
+  <script src="./desk.js?v=33"></script>
+  <script src="./positions.js?v=33"></script>
+  <script src="./live.js?v=33"></script>
+  <script src="./ui.js?v=33"></script>
+  <script type="module" src="./privy-auth.js?v=33"></script>
 </body>
 </html>
