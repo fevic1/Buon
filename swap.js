@@ -1,10 +1,12 @@
 import { Transaction } from "https://cdn.jsdelivr.net/npm/ethers@6.13.5/+esm";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
 const POOL_SOL = "8ZGuiQZzb6BMDeWjzPzowr6B839ftaJS15ihoscfqEk4";
+const SOL_RPC = "https://api.mainnet-beta.solana.com";
 const RPC = {
-  8453: ["https://mainnet.base.org", "https://base.llamarpc.com", "https://base.publicnode.com"],
+  8453: ["https://base.publicnode.com", "https://base.drpc.org", "https://mainnet.base.org"],
   1: ["https://cloudflare-eth.com"],
   56: ["https://bsc-dataseed.binance.org"],
   4663: ["https://rpc.mainnet.chain.robinhood.com"]
@@ -18,24 +20,18 @@ const CHAIN = {
 };
 
 function logLine(m) { if (typeof log === "function") log(m); }
-
 function destChain(chain, mint) {
   var c = String(chain || "").toLowerCase();
   if (CHAIN[c]) return CHAIN[c];
   if (String(mint || "").indexOf("0x") === 0) return 4663;
   return 792703809;
 }
-
 async function rpc(chainId, method, params) {
   var urls = RPC[chainId] || RPC[8453];
   var last = "rpc";
   for (var i = 0; i < urls.length; i++) {
     try {
-      var res = await fetch(urls[i], {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
-      });
+      var res = await fetch(urls[i], { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
       var data = await res.json();
       if (data.error) { last = data.error.message; continue; }
       return data.result;
@@ -43,62 +39,59 @@ async function rpc(chainId, method, params) {
   }
   throw new Error(last);
 }
-
+async function solRpc(method, params) {
+  var res = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+  var data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.result;
+}
+function b64ToHex(b64) {
+  var raw = atob(b64);
+  var hex = "";
+  for (var i = 0; i < raw.length; i++) hex += raw.charCodeAt(i).toString(16).padStart(2, "0");
+  return hex;
+}
 async function signSend(chainId, to, data, value) {
   var tk = window.BUON_TK;
   if (!tk || !tk.client) throw new Error("Turnkey not ready");
   var nonceHex = await rpc(chainId, "eth_getTransactionCount", [POOL, "pending"]);
   var gasPrice = await rpc(chainId, "eth_gasPrice", []);
-  var tx = Transaction.from({
-    to: to,
-    data: data || "0x",
-    value: value || 0,
-    gasLimit: 400000n,
-    gasPrice: BigInt(gasPrice),
-    nonce: Number(nonceHex),
-    chainId: chainId,
-    type: 0
-  });
+  var tx = Transaction.from({ to: to, data: data || "0x", value: value || 0, gasLimit: 400000n, gasPrice: BigInt(gasPrice), nonce: Number(nonceHex), chainId: chainId, type: 0 });
   var raw = tx.unsignedSerialized.replace(/^0x/, "");
-  var act = await tk.client.signTransaction({
-    type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2",
-    timestampMs: String(Date.now()),
-    organizationId: tk.org,
-    parameters: {
-      signWith: POOL,
-      unsignedTransaction: raw,
-      type: "TRANSACTION_TYPE_ETHEREUM"
-    }
-  });
-  var signed =
-    (act && act.activity && act.activity.result && act.activity.result.signTransactionResult && act.activity.result.signTransactionResult.signedTransaction) ||
-    (act && act.signedTransaction);
+  var act = await tk.client.signTransaction({ type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2", timestampMs: String(Date.now()), organizationId: tk.org, parameters: { signWith: POOL, unsignedTransaction: raw, type: "TRANSACTION_TYPE_ETHEREUM" } });
+  var signed = (act && act.activity && act.activity.result && act.activity.result.signTransactionResult && act.activity.result.signTransactionResult.signedTransaction) || (act && act.signedTransaction);
   if (!signed) throw new Error("no signed tx");
   if (signed.indexOf("0x") !== 0) signed = "0x" + signed;
   var hash = await rpc(chainId, "eth_sendRawTransaction", [signed]);
   logLine("sent " + hash);
   return hash;
 }
-
+async function signSendSol(unsignedHex) {
+  var tk = window.BUON_TK;
+  if (!tk || !tk.client) throw new Error("Turnkey not ready");
+  var act = await tk.client.signTransaction({ type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2", timestampMs: String(Date.now()), organizationId: tk.org, parameters: { signWith: POOL_SOL, unsignedTransaction: unsignedHex.replace(/^0x/, ""), type: "TRANSACTION_TYPE_SOLANA" } });
+  var signed = (act && act.activity && act.activity.result && act.activity.result.signTransactionResult && act.activity.result.signTransactionResult.signedTransaction) || (act && act.signedTransaction);
+  if (!signed) throw new Error("no signed sol tx");
+  var bytes = signed.replace(/^0x/, "");
+  var bin = new Uint8Array(bytes.match(/.{1,2}/g).map(function (b) { return parseInt(b, 16); }));
+  var b64 = btoa(String.fromCharCode.apply(null, bin));
+  var sig = await solRpc("sendTransaction", [b64, { encoding: "base64", skipPreflight: false }]);
+  logLine("sol sent " + sig);
+  return sig;
+}
 async function allowance(token, spender, chainId) {
   var owner = POOL.slice(2).toLowerCase().padStart(64, "0");
   var sp = spender.slice(2).toLowerCase().padStart(64, "0");
   var raw = await rpc(chainId || 8453, "eth_call", [{ to: token, data: "0xdd62ed3e" + owner + sp }, "latest"]);
   return BigInt(raw || "0x0");
 }
-
 async function evmTokenAtoms(mint, chainId) {
   var data = "0x70a08231" + POOL.slice(2).toLowerCase().padStart(64, "0");
   var raw = await rpc(chainId, "eth_call", [{ to: mint, data: data }, "latest"]);
   return BigInt(raw || "0x0");
 }
-
 async function relayQuote(body) {
-  var res = await fetch("https://api.relay.link/quote/v2", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
-  });
+  var res = await fetch("https://api.relay.link/quote/v2", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   var q = await res.json();
   if (q.message || q.error) throw new Error(q.message || q.error);
   var txs = [];
@@ -110,7 +103,6 @@ async function relayQuote(body) {
   if (!txs.length) throw new Error("Relay returned no tx");
   return { tool: "relay", txs: txs };
 }
-
 async function runSteps(q, amountHint) {
   var lastHash = "";
   for (var i = 0; i < q.txs.length; i++) {
@@ -118,20 +110,75 @@ async function runSteps(q, amountHint) {
     var chainId = Number(tx.chainId || 8453);
     if (String(tx.data || "").indexOf("0x095ea7b3") === 0) {
       var spender = "0x" + String(tx.data).slice(34, 74);
-      var token = tx.to;
-      var have = await allowance(token, spender, chainId);
+      var have = await allowance(tx.to, spender, chainId);
       if (amountHint && have >= BigInt(amountHint)) { logLine("allowance ok"); continue; }
     }
     lastHash = await signSend(chainId, tx.to, tx.data, tx.value || 0);
   }
   return lastHash;
 }
+async function topUpSol() {
+  var bal = await solRpc("getBalance", [POOL_SOL]);
+  var lamports = Number((bal && bal.value) || bal || 0);
+  if (lamports >= 400000) { logLine("SOL gas ok " + lamports); return; }
+  logLine("Solana pool has 0 gas — sending 0.40 USDC Base → SOL");
+  var q = await relayQuote({
+    user: POOL,
+    originChainId: 8453,
+    originCurrency: USDC,
+    destinationChainId: 792703809,
+    destinationCurrency: "11111111111111111111111111111111",
+    amount: "400000",
+    tradeType: "EXACT_INPUT",
+    recipient: POOL_SOL
+  });
+  await runSteps(q, "400000");
+  logLine("SOL top-up submitted — wait for it to land then tap Take profit again");
+}
+async function solTokenAtoms(mint) {
+  var programs = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
+  for (var i = 0; i < programs.length; i++) {
+    var res = await solRpc("getTokenAccountsByOwner", [POOL_SOL, { mint: mint }, { encoding: "jsonParsed" }]);
+    var rows = (res && res.value) || [];
+    if (!rows.length) {
+      res = await solRpc("getTokenAccountsByOwner", [POOL_SOL, { programId: programs[i] }, { encoding: "jsonParsed" }]);
+      rows = ((res && res.value) || []).filter(function (row) {
+        var info = (((row.account || {}).data || {}).parsed || {}).info || {};
+        return info.mint === mint;
+      });
+    }
+    if (rows.length) {
+      var info = (((rows[0].account || {}).data || {}).parsed || {}).info || {};
+      return String((info.tokenAmount || {}).amount || "0");
+    }
+  }
+  return "0";
+}
+async function sellSolana(pos) {
+  var atoms = await solTokenAtoms(pos.mint);
+  if (atoms === "0") throw new Error("No $" + (pos.symbol || "token") + " in the Solana pool");
+  await topUpSol();
+  var bal = await solRpc("getBalance", [POOL_SOL]);
+  var lamports = Number((bal && bal.value) || bal || 0);
+  if (lamports < 400000) throw new Error("Waiting on SOL gas. Tap Take profit again in ~30s.");
+  logLine("Jupiter sell $" + (pos.symbol || "") + " " + atoms);
+  var quote = await fetch("https://lite-api.jup.ag/swap/v1/quote?inputMint=" + pos.mint + "&outputMint=" + USDC_SOL + "&amount=" + atoms + "&slippageBps=150").then(function (r) { return r.json(); });
+  if (!quote || !quote.outAmount) throw new Error(quote.error || "no Jupiter route");
+  var swap = await fetch("https://lite-api.jup.ag/swap/v1/swap", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ quoteResponse: quote, userPublicKey: POOL_SOL, wrapAndUnwrapSol: false, dynamicComputeUnitLimit: true })
+  }).then(function (r) { return r.json(); });
+  if (!swap.swapTransaction) throw new Error(swap.error || "no swap tx");
+  var sig = await signSendSol(b64ToHex(swap.swapTransaction));
+  if (typeof recordHistory === "function") recordHistory({ type: "sell", usd: Number(quote.outAmount || 0) / 1e6, net: "solana", dest: pos.mint, note: pos.symbol });
+  logLine("sold $" + (pos.symbol || "") + " → " + (Number(quote.outAmount) / 1e6).toFixed(2) + " USDC on Solana");
+  return sig;
+}
 
 window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain) {
   try {
     if (!window.BUON_TK) throw new Error("Turnkey not ready");
-    var eth = BigInt(await rpc(8453, "eth_getBalance", [POOL, "latest"]));
-    if (eth === 0n) throw new Error("Pool has 0 ETH on Base. Send a little ETH to 0xB1AC… for gas.");
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var amount = String(Math.floor(size * 1e6));
     var toChain = destChain(chain, mint);
@@ -150,9 +197,7 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     logLine(q.tool + " buy · " + q.txs.length + " step(s)");
     var lastHash = await runSteps(q, amount);
     if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
-    if (typeof recordPosition === "function" && lastHash) {
-      recordPosition({ mint: mint, symbol: symbol, usdIn: size, chain: String(chain || ""), sig: lastHash });
-    }
+    if (typeof recordPosition === "function" && lastHash) recordPosition({ mint: mint, symbol: symbol, usdIn: size, chain: String(chain || ""), sig: lastHash });
     logLine("buy $" + symbol + " submitted");
     if (typeof refreshBalance === "function") refreshBalance();
   } catch (err) {
@@ -163,13 +208,11 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
 window.deskSell = async function (pos) {
   if (!pos || !pos.mint) throw new Error("no position");
   if (!window.BUON_TK) throw new Error("Turnkey not ready");
+  if (String(pos.mint).indexOf("0x") !== 0) return sellSolana(pos);
   var fromChain = destChain(pos.chain, pos.mint);
-  if (Number(fromChain) === 792703809 || String(pos.mint).indexOf("0x") !== 0) {
-    throw new Error("Solana close is not signed yet — USDC is still in $" + (pos.symbol || "token"));
-  }
   var atoms = await evmTokenAtoms(pos.mint, fromChain);
-  if (atoms === 0n) throw new Error("No $" + (pos.symbol || "token") + " in the pool to return");
-  logLine("selling $" + (pos.symbol || "") + " " + atoms.toString() + " → Base USDC");
+  if (atoms === 0n) throw new Error("No $" + (pos.symbol || "token") + " in the EVM pool");
+  logLine("selling $" + (pos.symbol || "") + " → Base USDC");
   var q = await relayQuote({
     user: POOL,
     originChainId: fromChain,
