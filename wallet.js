@@ -1,6 +1,5 @@
 (function () {
   const STORE = "buon_embed_v1";
-  function bytesToJson(u8) { return JSON.stringify(Array.from(u8)); }
   function jsonToBytes(s) { return Uint8Array.from(JSON.parse(s)); }
   function loadKp() {
     var raw = localStorage.getItem(STORE);
@@ -8,81 +7,78 @@
     try { return window.solanaWeb3.Keypair.fromSecretKey(jsonToBytes(raw)); }
     catch (e) { return null; }
   }
-  function saveKp(kp) { localStorage.setItem(STORE, bytesToJson(kp.secretKey)); }
-  function setUi(on) {
-    var c = document.getElementById("connectBtn");
-    var d = document.getElementById("disconnectBtn");
-    if (c) c.textContent = on ? "Cash account" : "Create cash account";
-    if (d) d.hidden = !on;
-    var st = document.getElementById("walletStatus");
-    if (st) st.textContent = on ? "wallet on" : "wallet off";
-  }
-  function drawAddrs() {
+  function saveKp(kp) { localStorage.setItem(STORE, JSON.stringify(Array.from(kp.secretKey))); }
+  function draw() {
     var list = document.getElementById("addrList");
-    if (!list) return;
-    if (!state.wallet) {
-      list.innerHTML = "<div class=\"meta\">Log in with email to open the Privy cash account.</div>";
-      return;
-    }
-    list.innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + state.wallet + "</code><button class=\"ghost\" data-copy=\"" + state.wallet + "\" type=\"button\">Copy</button></div>";
+    if (!list || !state.wallet) return;
+    var extra = "";
+    if (state.privyUser) extra = "<div class=\"meta\">Also signed into Privy as email</div>";
+    list.innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + state.wallet + "</code><button class=\"ghost\" data-copy=\"" + state.wallet + "\" type=\"button\">Copy</button></div>" +
+      "<div class=\"meta\">This is the spend account. Send Solana USDC here, then Buy.</div>" + extra;
+    var btn = document.getElementById("connectBtn");
+    var disc = document.getElementById("disconnectBtn");
+    if (btn) btn.textContent = "Cash account";
+    if (disc) disc.hidden = false;
+    var st = document.getElementById("walletStatus");
+    if (st) st.textContent = "wallet on";
+    var wa = document.getElementById("walletAddr");
+    if (wa) wa.textContent = state.wallet;
   }
   window.openCashAccount = function () {
-    log("Use Send code + Open cash account for Privy. Local key is fallback only.");
-    return state.kp || loadKp();
-  };
-  window.openLocalCashAccount = function () {
-    if (!window.solanaWeb3) { log("web3 missing"); return null; }
-    var kp = loadKp() || window.solanaWeb3.Keypair.generate();
-    saveKp(kp);
+    if (!window.solanaWeb3) { log("solana web3 missing"); return null; }
+    var kp = loadKp();
+    if (!kp) {
+      kp = window.solanaWeb3.Keypair.generate();
+      saveKp(kp);
+    }
     state.kp = kp;
     state.wallet = kp.publicKey.toString();
-    setUi(true);
-    drawAddrs();
-    log("Local fallback account " + state.wallet);
+    draw();
+    log("Cash account " + state.wallet);
     if (typeof refreshBalance === "function") refreshBalance();
     return kp;
+  };
+  window.ensureWallet = async function () {
+    var kp = state.kp || loadKp() || openCashAccount();
+    if (!kp) throw new Error("Could not open cash account");
+    state.kp = kp;
+    state.wallet = kp.publicKey.toString();
+    draw();
+    return state.wallet;
+  };
+  window.signAndSend = async function (vtx) {
+    var kp = state.kp || loadKp() || openCashAccount();
+    if (!kp) throw new Error("No cash account to sign");
+    vtx.sign([kp]);
+    var conn = await connection();
+    return await conn.sendRawTransaction(vtx.serialize(), { skipPreflight: false });
   };
   window.disconnectWallet = function () {
     state.kp = null;
     state.wallet = null;
-    state.evm = null;
     state.cashUsdc = 0;
-    setUi(false);
-    drawAddrs();
+    document.getElementById("connectBtn").textContent = "Create cash account";
+    document.getElementById("disconnectBtn").hidden = true;
+    document.getElementById("walletStatus").textContent = "wallet off";
     document.getElementById("cashAmt").textContent = "\u2014 USDC";
     document.getElementById("gasAmt").textContent = "SOL gas \u2014";
-    document.getElementById("walletBals").innerHTML = "";
-    log("Logged out");
+    document.getElementById("addrList").innerHTML = "<div class=\"meta\">Cash account locked</div>";
+    log("Logged out. Key stays in this browser until Wipe local.");
   };
   window.wipeCashAccount = function () {
     localStorage.removeItem(STORE);
     disconnectWallet();
-    log("Local key wiped");
+    log("Cash key wiped");
   };
-  window.exportCashAccount = function () {
-    var kp = state.kp || loadKp();
-    if (!kp) { log("No local key"); return; }
-    navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(Array.from(kp.secretKey)));
-    log("Local secret copied");
-  };
-  window.ensureWallet = async function () {
-    if (state.wallet) return state.wallet;
-    throw new Error("Open the Privy cash account first");
-  };
-  window.signAndSend = async function (vtx) {
-    var kp = state.kp || loadKp();
-    if (!kp) throw new Error("Privy signing is next; local key not loaded");
-    vtx.sign([kp]);
-    var conn = await connection();
-    return await conn.sendRawTransaction(vtx.serialize());
-  };
-  document.getElementById("connectBtn").onclick = function () {
-    log("Use Open cash account under email");
-  };
-  var disc = document.getElementById("disconnectBtn");
-  if (disc) disc.onclick = function () { disconnectWallet(); };
-  var wipe = document.getElementById("wipeBtn");
-  if (wipe) wipe.onclick = function () { wipeCashAccount(); };
-  var exp = document.getElementById("exportBtn");
-  if (exp) exp.onclick = function () { exportCashAccount(); };
+  var c = document.getElementById("connectBtn");
+  if (c) c.onclick = function () { openCashAccount(); };
+  var d = document.getElementById("disconnectBtn");
+  if (d) d.onclick = function () { disconnectWallet(); };
+  var w = document.getElementById("wipeBtn");
+  if (w) w.onclick = function () { wipeCashAccount(); };
+  function boot() {
+    if (window.solanaWeb3) openCashAccount();
+    else setTimeout(boot, 200);
+  }
+  boot();
 })();
