@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Buon — cash account</title>
-  <link rel="stylesheet" href="./styles.css?v=12" />
-  <link rel="stylesheet" href="./pulse.css?v=12" />
+  <link rel="stylesheet" href="./styles.css?v=13" />
+  <link rel="stylesheet" href="./pulse.css?v=13" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -28,18 +28,17 @@
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
       <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Send code, then Open cash account. The bar at the bottom confirms every click.</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Send code, then Open cash account.</div></div>
       <div>
         <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
-        <button class="ghost slim" id="exportBtn" type="button">Export local key</button>
         <button class="ghost slim" id="wipeBtn" type="button">Wipe local</button>
       </div>
     </section>
     <section class="hero-strip">
       <div>
-        <p class="kicker">live wallet · not a mock</p>
+        <p class="kicker">live wallet</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Every button pulses and writes the bottom bar. If Privy fails, the bar says why.</p>
+        <p class="sub">Public Solana RPCs are blocked from this site. Paste a Helius RPC to read cash.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -57,11 +56,11 @@
           <label>Code<input id="privyCode" inputmode="numeric" autocomplete="off" /></label>
           <button class="ghost slim" id="privySend" type="button" onclick="sendPrivyCode()">Send code</button>
           <button class="primary slim" id="privyGo" type="button" onclick="verifyPrivyCode()">Open cash account</button>
+          <label>Solana RPC URL<input id="rpcUrl" placeholder="https://mainnet.helius-rpc.com/?api-key=..." autocomplete="off" /></label>
           <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
           <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <p class="fine">Bottom bar = last click. Activity = detail.</p>
           <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
             <div class="w-addr" id="walletAddr">Waiting for Privy login</div>
@@ -83,14 +82,14 @@
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <div class="toast show" id="toast">Desk ready. Click Send code.</div>
-  <footer class="foot">Not a mock. Bottom bar confirms the click.</footer>
+  <div class="toast show" id="toast">Paste a Helius RPC to read cash.</div>
+  <footer class="foot">PublicNode now requires a token. Use Helius.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=12"></script>
-  <script src="./wallet.js?v=12"></script>
-  <script src="./privy.js?v=12"></script>
-  <script src="./desk.js?v=12"></script>
-  <script src="./live.js?v=12"></script>
-  <script src="./ui.js?v=12"></script>
+  <script src="./app.js?v=13"></script>
+  <script src="./wallet.js?v=13"></script>
+  <script src="./privy.js?v=13"></script>
+  <script src="./desk.js?v=13"></script>
+  <script src="./live.js?v=13"></script>
+  <script src="./ui.js?v=13"></script>
 </body>
 </html>
