@@ -35,7 +35,7 @@
       <div>
         <p class="kicker">buon desk · ranked wallets · USDC cash</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">One cash unit: USDC. Buys spend cash, not SOL/ETH/BNB. Phantom still signs on this page.</p>
+        <p class="sub">One cash unit: USDC. Auto only on Solana, Base, BSC when a public route exists.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -61,9 +61,9 @@
           </label>
           <label class="toggle">
             <input type="checkbox" id="autoBuy" />
-            <span>Propose USDC buys on crowded / potential</span>
+            <span>Auto-propose USDC on Solana, Base, BSC only</span>
           </label>
-          <p class="fine">Cash is USDC. Solana buys spend USDC, not SOL. Other networks try a cash route. Phantom still signs.</p>
+          <p class="fine">Cash is USDC. Auto fires only on Solana, Base, and BSC when you hold USDC. Phantom still signs.</p>
           <label>Tape key (optional, for full books)
             <input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" />
           </label>
@@ -117,9 +117,31 @@
     <aside class="sheet" id="sheet"></aside>
   </div>
   <footer class="foot">
-    Click a trader or a coin. Buys spend USDC cash. Buon does not custody funds.
+    Buys spend USDC cash. Auto stays on Solana, Base, BSC. Buon does not custody funds.
   </footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
   <script src="./app.js"></script>
+  <script>
+    (function () {
+      if (typeof proposeBuy !== "function") return;
+      const allow = { solana: 1, sol: 1, base: 1, bsc: 1, bnb: 1, binance: 1 };
+      const seen = new Map();
+      const inner = proposeBuy;
+      proposeBuy = function (mint, symbol, fromAuto, chain) {
+        if (fromAuto) {
+          const c = String(chain || "solana").toLowerCase();
+          if (!allow[c]) { log("auto skip $" + symbol + " · " + c); return; }
+          if (!state.wallet) { log("auto armed · connect and fund USDC"); return; }
+          const size = Number(document.getElementById("sizeUsd").value || 20);
+          if (!state.cashUsdc || state.cashUsdc < size) { log("auto paused · need USDC cash"); return; }
+          const last = seen.get(mint) || 0;
+          if (Date.now() - last < 10 * 60 * 1000) return;
+          seen.set(mint, Date.now());
+          log("auto " + c + " $" + symbol);
+        }
+        return inner(mint, symbol, fromAuto, chain);
+      };
+    })();
+  </script>
 </body>
 </html>
