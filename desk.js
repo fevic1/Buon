@@ -9,14 +9,9 @@
   const RPC_KEY = "buon_rpc";
   const SOL_MIN = 0.03;
   const GAS_USDC = 2;
-  const SOL_RPCS = [
-    "https://api.mainnet-beta.solana.com",
-    "https://solana.drpc.org",
-    "https://solana-rpc.publicnode.com"
-  ];
+  const SOL_RPCS = ["https://api.mainnet-beta.solana.com", "https://solana.drpc.org", "https://solana-rpc.publicnode.com"];
   const BASE_RPCS = ["https://mainnet.base.org", "https://base.llamarpc.com"];
   const CHAIN_ID = { ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56, robinhood: 4663, rh: 4663 };
-
   function normRpc(v) {
     v = String(v || "").trim();
     if (!v) return "";
@@ -64,17 +59,12 @@
     el.addEventListener("change", saveCreds);
     el.addEventListener("input", saveCreds);
   });
-
   async function solRpc(method, params) {
     var last = "no rpc";
     var urls = solList();
     for (var i = 0; i < urls.length; i++) {
       try {
-        var res = await fetch(urls[i], {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
-        });
+        var res = await fetch(urls[i], { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
         var text = await res.text();
         var data;
         try { data = JSON.parse(text); } catch (e) { last = text.slice(0, 80); continue; }
@@ -84,9 +74,7 @@
     }
     throw new Error(last);
   }
-  window.connection = async function () {
-    return new window.solanaWeb3.Connection(solList()[0], "confirmed");
-  };
+  window.connection = async function () { return new window.solanaWeb3.Connection(solList()[0], "confirmed"); };
   async function solUsdc(owner) {
     var PK = window.solanaWeb3.PublicKey;
     var found = await PK.findProgramAddress([new PK(owner).toBuffer(), new PK(TOKEN).toBuffer(), new PK(USDC_SOL).toBuffer()], new PK(ASSOC));
@@ -122,28 +110,15 @@
     var amt = document.getElementById("cashAmt");
     if (amt) amt.textContent = total.toFixed(2) + " USDC";
     var gas = document.getElementById("gasAmt");
-    if (gas) gas.textContent = "SOL " + Number(solG || 0).toFixed(4);
+    if (gas) gas.textContent = "";
     var box = document.getElementById("walletBals");
-    if (box) box.innerHTML =
-      "<div class=\"bal-row\"><span>Base USDC</span><span class=\"amt\">" + Number(base || 0).toFixed(2) + "</span></div>" +
-      "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + Number(solU || 0).toFixed(2) + "</span></div>" +
-      "<div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(solG || 0).toFixed(4) + "</span></div>";
+    if (box) box.textContent = "";
   }
   async function planGas(solU, solG) {
-    if (solG >= SOL_MIN) return;
-    if (!(solU >= GAS_USDC)) {
-      if (solU > 0) log("Gas top-up waits until Solana USDC ≥ $" + GAS_USDC);
-      return;
-    }
-    if (solG < 0.002) {
-      log("USDC is here but SOL is 0 — first swap needs a dust of SOL. After that, $" + GAS_USDC + " USDC buys ~" + SOL_MIN + " SOL automatically.");
-      return;
-    }
+    if (solG >= SOL_MIN || !(solU >= GAS_USDC)) return;
+    if (solG < 0.002) return;
     try {
-      var quote = await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + WSOL + "&amount=" + Math.floor(GAS_USDC * 1e6) + "&slippageBps=200").then(function (r) { return r.json(); });
-      if (!quote.outAmount) return;
-      var solOut = Number(quote.outAmount) / 1e9;
-      log("Gas plan: swap $" + GAS_USDC + " USDC → " + solOut.toFixed(4) + " SOL. Sign with Privy to fill.");
+      await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + WSOL + "&amount=" + Math.floor(GAS_USDC * 1e6) + "&slippageBps=200");
     } catch (e) {}
   }
   window.refreshBalance = window.deskRefresh = async function () {
@@ -155,10 +130,8 @@
         solG = Number((lamports && lamports.value) || 0) / 1e9;
         solU = await solUsdc(state.wallet);
       }
-    } catch (err) { log("sol balance: " + (err.message || err)); }
-    try {
-      if (state.evm) base = await baseUsdc(state.evm);
-    } catch (err) { log("base balance: " + (err.message || err)); }
+    } catch (err) {}
+    try { if (state.evm) base = await baseUsdc(state.evm); } catch (err) {}
     paintCash(base, solU, solG);
     planGas(solU, solG);
   };
@@ -174,17 +147,15 @@
     var cid = CHAIN_ID[c] || 8453;
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var evm = state.evm || "";
-    if (!evm) { log("Sign in first"); return; }
-    if (!String(mint || "").startsWith("0x")) { log("No EVM mint on this line"); return; }
+    if (!evm || !String(mint || "").startsWith("0x")) return;
     var url = "https://li.quest/v1/quote?fromChain=" + cid + "&toChain=" + cid + "&fromToken=USDC&toToken=" + mint + "&fromAmount=" + atoms(size) + "&fromAddress=" + evm;
     var q = await fetch(url).then(function (r) { return r.json(); });
     if (q.message || q.error) throw new Error(q.message || q.error || "no EVM route");
-    log("Route on " + c + " via " + (q.tool || "DEX"));
+    log("Route on " + c);
   }
   async function solMint(mint, symbol) {
     if (looksSol(mint)) return mint;
     var q = String(symbol || "").replace(/^\$/, "");
-    if (!q) throw new Error("no Solana mint");
     var data = await fetch("https://api.dexscreener.com/latest/dex/search?q=" + encodeURIComponent(q)).then(function (r) { return r.json(); });
     var want = q.toUpperCase();
     var pairs = data.pairs || [];
@@ -193,14 +164,11 @@
     throw new Error("no Solana mint for $" + q);
   }
   window.proposeBuy = window.deskBuy = async function (mint, symbol, _auto, chain) {
-    if (isEvm(chain, mint)) {
-      try { await evmBuy(mint, symbol, chain); } catch (err) { log("Buy blocked: " + (err.message || err)); }
-      return;
-    }
+    if (isEvm(chain, mint)) { try { await evmBuy(mint, symbol, chain); } catch (err) { log("Buy blocked: " + (err.message || err)); } return; }
     if (!state.wallet) throw new Error("Sign in first");
     await refreshBalance();
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
-    if (!(state.solUsdc >= size) && !(state.cashUsdc >= size)) { log("Need " + size + " USDC"); return; }
+    if (!(state.cashUsdc >= size)) { log("Need " + size + " USDC"); return; }
     try {
       var outMint = await solMint(mint, symbol);
       var quote = await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + outMint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
@@ -208,15 +176,8 @@
       log("Jupiter quote for $" + symbol);
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
-
-  window.openSettings = function () {
-    var sh = document.getElementById("setShade");
-    if (sh) sh.hidden = false;
-  };
-  window.closeSettings = function () {
-    var sh = document.getElementById("setShade");
-    if (sh) sh.hidden = true;
-  };
+  window.openSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = false; };
+  window.closeSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = true; };
   var setBtn = document.getElementById("settingsBtn");
   if (setBtn) setBtn.onclick = function () { openSettings(); };
   var setX = document.getElementById("settingsClose");
