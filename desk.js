@@ -1,11 +1,14 @@
 (function () {
   const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
   const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+  const WSOL = "So11111111111111111111111111111111111111112";
   const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
   const ASSOC = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
   const JQ = "https://lite-api.jup.ag/swap/v1/quote";
   const JS = "https://lite-api.jup.ag/swap/v1/swap";
   const RPC_KEY = "buon_rpc";
+  const SOL_MIN = 0.03;
+  const GAS_USDC = 2;
   const SOL_RPCS = [
     "https://api.mainnet-beta.solana.com",
     "https://solana.drpc.org",
@@ -36,8 +39,6 @@
     var rpc = document.getElementById("rpcUrl");
     var saved = localStorage.getItem(RPC_KEY) || "";
     if (rpc && saved) rpc.value = saved;
-    var auto = document.getElementById("autoBuy");
-    if (auto) auto.checked = localStorage.getItem("buon_autoBuy") === "1";
     var last = Number(localStorage.getItem("buon_last_usdc") || 0);
     if (last) {
       state.cashUsdc = last;
@@ -55,11 +56,9 @@
       var el = document.getElementById(id);
       if (el && el.value) localStorage.setItem("buon_" + id, el.value);
     });
-    var auto = document.getElementById("autoBuy");
-    if (auto) localStorage.setItem("buon_autoBuy", auto.checked ? "1" : "0");
   }
   loadCreds();
-  ["rpcUrl", "sizeUsd", "minAlert", "minOverlap", "tapeKey", "autoBuy", "tpPct"].forEach(function (id) {
+  ["rpcUrl", "sizeUsd", "minAlert", "minOverlap", "tapeKey", "tpPct"].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("change", saveCreds);
@@ -86,8 +85,7 @@
     throw new Error(last);
   }
   window.connection = async function () {
-    var url = solList()[0];
-    return new window.solanaWeb3.Connection(url, "confirmed");
+    return new window.solanaWeb3.Connection(solList()[0], "confirmed");
   };
   async function solUsdc(owner) {
     var PK = window.solanaWeb3.PublicKey;
@@ -114,21 +112,39 @@
     var raw = await evmRpc(BASE_RPCS, { jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: USDC_BASE, data: data }, "latest"] });
     return Number(BigInt(raw || "0x0")) / 1e6;
   }
-  function paintCash(base, solUsdc, solGas) {
-    var total = Number(base || 0) + Number(solUsdc || 0);
+  function paintCash(base, solU, solG) {
+    var total = Number(base || 0) + Number(solU || 0);
     state.cashUsdc = total;
     state.baseUsdc = Number(base || 0);
-    state.solUsdc = Number(solUsdc || 0);
+    state.solUsdc = Number(solU || 0);
+    state.solGas = Number(solG || 0);
     localStorage.setItem("buon_last_usdc", String(total));
     var amt = document.getElementById("cashAmt");
     if (amt) amt.textContent = total.toFixed(2) + " USDC";
     var gas = document.getElementById("gasAmt");
-    if (gas) gas.textContent = "SOL " + Number(solGas || 0).toFixed(4);
+    if (gas) gas.textContent = "SOL " + Number(solG || 0).toFixed(4);
     var box = document.getElementById("walletBals");
     if (box) box.innerHTML =
       "<div class=\"bal-row\"><span>Base USDC</span><span class=\"amt\">" + Number(base || 0).toFixed(2) + "</span></div>" +
-      "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + Number(solUsdc || 0).toFixed(2) + "</span></div>" +
-      "<div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(solGas || 0).toFixed(4) + "</span></div>";
+      "<div class=\"bal-row\"><span>Solana USDC</span><span class=\"amt\">" + Number(solU || 0).toFixed(2) + "</span></div>" +
+      "<div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + Number(solG || 0).toFixed(4) + "</span></div>";
+  }
+  async function planGas(solU, solG) {
+    if (solG >= SOL_MIN) return;
+    if (!(solU >= GAS_USDC)) {
+      if (solU > 0) log("Gas top-up waits until Solana USDC ≥ $" + GAS_USDC);
+      return;
+    }
+    if (solG < 0.002) {
+      log("USDC is here but SOL is 0 — first swap needs a dust of SOL. After that, $" + GAS_USDC + " USDC buys ~" + SOL_MIN + " SOL automatically.");
+      return;
+    }
+    try {
+      var quote = await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + WSOL + "&amount=" + Math.floor(GAS_USDC * 1e6) + "&slippageBps=200").then(function (r) { return r.json(); });
+      if (!quote.outAmount) return;
+      var solOut = Number(quote.outAmount) / 1e9;
+      log("Gas plan: swap $" + GAS_USDC + " USDC → " + solOut.toFixed(4) + " SOL. Sign with Privy to fill.");
+    } catch (e) {}
   }
   window.refreshBalance = window.deskRefresh = async function () {
     if (!state.wallet && !state.evm) return;
@@ -144,6 +160,7 @@
       if (state.evm) base = await baseUsdc(state.evm);
     } catch (err) { log("base balance: " + (err.message || err)); }
     paintCash(base, solU, solG);
+    planGas(solU, solG);
   };
   function atoms(n) { return Math.max(1, Math.floor(Number(n) * 1e6)); }
   function looksSol(mint) { return mint && !String(mint).startsWith("0x") && String(mint).length > 30; }
@@ -162,7 +179,7 @@
     var url = "https://li.quest/v1/quote?fromChain=" + cid + "&toChain=" + cid + "&fromToken=USDC&toToken=" + mint + "&fromAmount=" + atoms(size) + "&fromAddress=" + evm;
     var q = await fetch(url).then(function (r) { return r.json(); });
     if (q.message || q.error) throw new Error(q.message || q.error || "no EVM route");
-    log("Route on " + c + " via " + (q.tool || "DEX") + ". Fund Base USDC on the Privy EVM key.");
+    log("Route on " + c + " via " + (q.tool || "DEX"));
   }
   async function solMint(mint, symbol) {
     if (looksSol(mint)) return mint;
@@ -188,15 +205,13 @@
       var outMint = await solMint(mint, symbol);
       var quote = await fetch(JQ + "?inputMint=" + USDC_SOL + "&outputMint=" + outMint + "&amount=" + atoms(size) + "&slippageBps=200").then(function (r) { return r.json(); });
       if (!quote.outAmount) throw new Error(quote.error || "no quote");
-      log("Jupiter quote for $" + symbol + ". Sign uses Privy Solana.");
+      log("Jupiter quote for $" + symbol);
     } catch (err) { log("Buy blocked: " + (err.message || err)); }
   };
 
   window.openSettings = function () {
-    var p = document.getElementById("settingsPanel");
     var sh = document.getElementById("setShade");
     if (sh) sh.hidden = false;
-    if (p) p.hidden = false;
   };
   window.closeSettings = function () {
     var sh = document.getElementById("setShade");
