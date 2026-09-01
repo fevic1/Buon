@@ -12,23 +12,17 @@
     var list = document.getElementById("addrList");
     if (!list || !state.wallet) return;
     list.innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + state.wallet + "</code><button class=\"ghost\" data-copy=\"" + state.wallet + "\" type=\"button\">Copy</button></div>" +
-      "<div class=\"meta\">Key is in this browser only. Export it if you will fund this address.</div>";
+      "<div class=\"meta\">Key stays in this browser. Export shows it below.</div><textarea id=\"keyView\" hidden readonly></textarea>";
     var btn = document.getElementById("connectBtn");
-    var disc = document.getElementById("disconnectBtn");
     if (btn) btn.textContent = "Cash account";
-    if (disc) disc.hidden = false;
-    var st = document.getElementById("walletStatus");
-    if (st) st.textContent = "wallet on";
-    var wa = document.getElementById("walletAddr");
-    if (wa) wa.textContent = state.wallet;
+    document.getElementById("disconnectBtn").hidden = false;
+    document.getElementById("walletStatus").textContent = "wallet on";
+    document.getElementById("walletAddr").textContent = state.wallet;
   }
   window.openCashAccount = function () {
     if (!window.solanaWeb3) { log("solana web3 missing"); return null; }
     var kp = loadKp();
-    if (!kp) {
-      kp = window.solanaWeb3.Keypair.generate();
-      saveKp(kp);
-    }
+    if (!kp) { kp = window.solanaWeb3.Keypair.generate(); saveKp(kp); }
     state.kp = kp;
     state.wallet = kp.publicKey.toString();
     draw();
@@ -55,37 +49,40 @@
     var kp = state.kp || loadKp();
     if (!kp) { log("No key in this browser"); return; }
     var raw = JSON.stringify(Array.from(kp.secretKey));
-    if (navigator.clipboard) navigator.clipboard.writeText(raw);
-    log("Secret key copied. It is a 64-number JSON array. Anyone with it can spend the cash.");
+    var box = document.getElementById("keyView");
+    if (!box) {
+      box = document.createElement("textarea");
+      box.id = "keyView";
+      box.readOnly = true;
+      document.getElementById("addrList").appendChild(box);
+    }
+    box.hidden = false;
+    box.value = raw;
+    box.style.cssText = "width:100%;min-height:90px;margin-top:8px;background:#0b0a14;color:#eaedff;border:1px solid rgba(203,208,235,.2);border-radius:10px;padding:8px;font:12px ui-monospace,monospace";
+    try { navigator.clipboard.writeText(raw); } catch (e) {}
+    window.prompt("Cash account secret (64 numbers). Save it offline.", raw);
+    log("Secret key shown. Anyone with it can spend the USDC.");
   };
   window.disconnectWallet = function () {
-    state.kp = null;
-    state.wallet = null;
-    state.cashUsdc = 0;
+    state.kp = null; state.wallet = null; state.cashUsdc = 0;
     document.getElementById("connectBtn").textContent = "Create cash account";
     document.getElementById("disconnectBtn").hidden = true;
     document.getElementById("walletStatus").textContent = "wallet off";
     document.getElementById("cashAmt").textContent = "\u2014 USDC";
     document.getElementById("gasAmt").textContent = "SOL gas \u2014";
     document.getElementById("addrList").innerHTML = "<div class=\"meta\">Cash account locked</div>";
-    log("Locked. Key remains until Wipe local.");
+    log("Locked");
   };
   window.wipeCashAccount = function () {
     localStorage.removeItem(STORE);
     disconnectWallet();
-    log("Cash key wiped from this browser");
+    log("Key wiped from this browser");
   };
-  var c = document.getElementById("connectBtn");
-  if (c) c.onclick = function () { openCashAccount(); };
-  var d = document.getElementById("disconnectBtn");
-  if (d) d.onclick = function () { disconnectWallet(); };
-  var w = document.getElementById("wipeBtn");
-  if (w) w.onclick = function () { wipeCashAccount(); };
-  var e = document.getElementById("exportBtn");
-  if (e) e.onclick = function () { exportCashAccount(); };
-  function boot() {
-    if (window.solanaWeb3) openCashAccount();
-    else setTimeout(boot, 200);
-  }
+  document.getElementById("connectBtn").onclick = function () { openCashAccount(); };
+  document.getElementById("disconnectBtn").onclick = function () { disconnectWallet(); };
+  document.getElementById("wipeBtn").onclick = function () { wipeCashAccount(); };
+  var exp = document.getElementById("exportBtn");
+  if (exp) exp.onclick = function () { exportCashAccount(); };
+  function boot() { if (window.solanaWeb3) openCashAccount(); else setTimeout(boot, 200); }
   boot();
 })();
