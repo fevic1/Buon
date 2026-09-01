@@ -35,7 +35,7 @@
       <div>
         <p class="kicker">buon desk · ranked wallets · signed swaps</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Live leader flow. Official trader photos. Coin art from the tape. Your wallet balance on the left.</p>
+        <p class="sub">Click a trader or a coin. Tune the desk on the left. Phantom still signs every buy.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -64,9 +64,13 @@
             <span>Propose Solana buys on crowded / potential</span>
           </label>
           <p class="fine">Auto never bypasses your wallet. Phantom still pops for every swap.</p>
+          <label>Tape key (optional, for full books)
+            <input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" />
+          </label>
           <div class="wallet-box" id="walletBox">
             <div class="w-addr" id="walletAddr">Not connected</div>
             <div class="bals" id="walletBals"></div>
+            <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
           </div>
         </div>
         <div class="card">
@@ -109,8 +113,11 @@
       </aside>
     </section>
   </main>
+  <div class="shade" id="shade" hidden>
+    <aside class="sheet" id="sheet"></aside>
+  </div>
   <footer class="foot">
-    Buon reads a public social-data tape and can ask your own wallet to sign a Jupiter swap. It does not custody funds.
+    Click a trader for their tape book. Click a coin to inspect and buy. Buon does not custody funds.
   </footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
   <script src="./app.js"></script>
