@@ -3,92 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>Buon cash v23</title>
-  <link rel="stylesheet" href="./styles.css?v=23" />
-  <link rel="stylesheet" href="./pulse.css?v=23" />
+  <title>Buon Privy</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#070711; --card:#12121c; --line:rgba(203,208,235,.12); --text:#eaedff; --muted:#9aa3c7; --accent:#6b63f6; }
+    * { box-sizing: border-box; }
+    html, body, #root { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: Outfit, ui-sans-serif, system-ui, sans-serif; }
+    .nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; }
+    .brand { font-weight: 800; }
+    .badge { margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--accent); }
+    .shell { max-width: 920px; margin: 0 auto; padding: 0 18px 40px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; }
+    .kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); margin: 0; }
+    h1 { margin: 8px 0; }
+    .cash-amt { font-size: 26px; font-weight: 800; }
+    .copy { word-break: break-all; font-family: ui-monospace, monospace; font-size: 13px; }
+    .fine, .meta, .sub, .muted { color: var(--muted); font-size: 13px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+    button { cursor: pointer; border: 0; }
+    .primary, .ghost { border-radius: 999px; padding: 10px 14px; font-weight: 650; }
+    .primary { background: var(--accent); color: #fff; }
+    .ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .slim { padding: 8px 12px; font-size: 12px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 12px; margin-right: 8px; }
+    .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1b1b2b; border: 1px solid var(--line); padding: 10px 14px; border-radius: 12px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "@privy-io/react-auth": "https://esm.sh/@privy-io/react-auth@2.88.4?external=react,react-dom"
+    }
+  }
+  </script>
 </head>
 <body>
-  <div class="sky"></div>
-  <header class="nav">
-    <div class="brand"><span class="word">buon</span><span class="badge">v23</span></div>
-    <nav class="tabs" id="tabs">
-      <button class="tab on" data-view="feed">feed</button>
-      <button class="tab" data-view="leaders">leaderboard</button>
-      <button class="tab" data-view="book">overlap</button>
-    </nav>
-    <div class="nav-right">
-      <span class="pill" id="clock">--:--:--</span>
-      <button class="ghost" id="disconnectBtn" type="button" hidden>Log out</button>
-      <button class="primary" id="connectBtn" type="button">Create cash account</button>
-    </div>
-  </header>
-  <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
-  <main class="shell">
-    <section class="cash-bar card" id="cashBar">
-      <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Opening cash account…</div></div>
-      <div>
-        <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
-        <button class="ghost slim" id="exportBtn" type="button">Export key</button>
-        <button class="ghost slim" id="wipeBtn" type="button">Wipe local</button>
-      </div>
-    </section>
-    <section class="hero-strip">
-      <div>
-        <p class="kicker">spend wallet is the SOL address above</p>
-        <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Buys book into Positions. Take profit sells back to USDC.</p>
-      </div>
-      <div class="status-pills">
-        <span class="pill" id="apiStatus">tape …</span>
-        <span class="pill" id="walletStatus">wallet off</span>
-        <span class="pill" id="botStatus">bot idle</span>
-      </div>
-    </section>
-    <section class="grid">
-      <aside class="rail">
-        <div class="card">
-          <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
-          <label>Solana RPC URL<input id="rpcUrl" placeholder="https://mainnet.helius-rpc.com/?api-key=..." autocomplete="off" /></label>
-          <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
-          <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
-          <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
-          <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
-          <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
-          <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
-          <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">opening…</div>
-            <div class="bals" id="walletBals"></div>
-            <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
-          </div>
-        </div>
-        <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
-      </aside>
-      <section class="stage">
-        <div id="view-feed" class="view on"><div class="card-h tight"><h2>live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
-        <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h legends</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
-        <div id="view-book" class="view"><div class="card-h tight"><h2>ranked book</h2><span class="quiet">overlap</span></div><div id="book" class="book"></div></div>
-      </section>
-      <aside class="rail">
-        <div class="card"><div class="card-h"><h2>positions</h2></div><div id="posList" class="stack muted">No buys yet</div></div>
-        <div class="card"><div class="card-h"><h2>potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
-        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="log" class="log muted">Desk v23.</div></div>
-      </aside>
-    </section>
-  </main>
-  <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <div class="toast show" id="toast">Positions + take profit on v23</div>
-  <footer class="foot">v23</footer>
-  <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=23"></script>
-  <script src="./wallet.js?v=23"></script>
-  <script src="./privy.js?v=23"></script>
-  <script src="./desk.js?v=23"></script>
-  <script src="./positions.js?v=23"></script>
-  <script src="./live.js?v=23"></script>
-  <script src="./ui.js?v=23"></script>
+  <div class="shell"><div id="root">Loading Privy SDK…</div></div>
+  <script type="module" src="./privy-app.js?v=24"></script>
 </body>
 </html>
