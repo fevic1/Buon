@@ -1,7 +1,9 @@
 const SOL = "So11111111111111111111111111111111111111112";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const JUP_QUOTE = "https://lite-api.jup.ag/swap/v1/quote";
 const JUP_SWAP = "https://lite-api.jup.ag/swap/v1/swap";
+const RPC = "https://solana-rpc.publicnode.com";
 const API = atob("aHR0cHM6Ly9hcGkuZm9tb2FwaS5pbw==");
 const TAPE_WS = atob("d3NzOi8vYXBpLmZvbW9hcGkuaW8vd3MvYWxlcnRz");
 const MARKET = atob("aHR0cHM6Ly9mb21vLmZhbWlseQ==");
@@ -12,6 +14,7 @@ const state = {
   wallet: null,
   busy: false,
   seen: new Set(),
+  solPrice: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -28,11 +31,19 @@ function tokenKey(symbol, address) {
   return (symbol || "?").replace(/^\$/, "").toUpperCase();
 }
 
+function chainSlug(chain) {
+  const map = { sol: "solana", eth: "ethereum", bnb: "bsc", binance: "bsc", rh: "robinhood" };
+  return map[(chain || "solana").toLowerCase()] || (chain || "solana").toLowerCase();
+}
+
 function marketUrl(chain, address) {
   if (!address) return MARKET + "/";
-  const map = { sol: "solana", eth: "ethereum", bnb: "bsc", binance: "bsc", rh: "robinhood" };
-  const net = map[(chain || "solana").toLowerCase()] || (chain || "solana").toLowerCase();
-  return `${MARKET}/tokens/${net}/${address}`;
+  return `${MARKET}/tokens/${chainSlug(chain)}/${address}`;
+}
+
+function coinSrc(chain, address) {
+  if (!address) return "";
+  return `https://dd.dexscreener.com/ds-data/tokens/${chainSlug(chain)}/${address}.png`;
 }
 
 function initials(handle) {
@@ -42,8 +53,33 @@ function initials(handle) {
 function usd(n) {
   const v = Number(n || 0);
   if (!v) return "";
-  if (v >= 1000) return `$${(v / 1000).toFixed(1)}K`;
+  if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}K`;
   return `$${v.toFixed(0)}`;
+}
+
+function ago(ts) {
+  if (!ts) return "";
+  const ms = ts > 1e12 ? ts : ts * 1000;
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  return `${Math.floor(s / 3600)}h`;
+}
+
+function face(handle) {
+  const src = state.leaders.get(handle)?.avatar;
+  const ini = initials(handle);
+  if (src) {
+    return `<div class="face-wrap"><img class="face" src="${src}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="avatar" style="display:none">${ini}</div></div>`;
+  }
+  return `<div class="avatar">${ini}</div>`;
+}
+
+function coin(chain, address, symbol) {
+  const src = coinSrc(chain, address);
+  const label = (symbol || "?").replace(/^\$/, "");
+  if (!src) return `$${label}`;
+  return `<span class="sym"><img class="coin" src="${src}" alt="" onerror="this.style.display='none'">$${label}</span>`;
 }
 
 function bookOf(symbol, address, chain) {
@@ -95,10 +131,10 @@ function renderFeed(alert, prepend = true) {
   const type = (alert.type || "trade").toLowerCase();
   const canSwap = (alert.chain || "").toLowerCase() === "solana" && alert.tokenAddress && !alert.tokenAddress.startsWith("0x");
   row.innerHTML = `
-    <div class="avatar">${initials(alert.trader)}</div>
+    ${face(alert.trader)}
     <div>
       <div class="who">@${alert.trader || "unknown"} <span class="tag ${type}">${type}</span></div>
-      <div class="meta">${alert.text || `$${alert.token}`} · ${alert.chain || ""} · ${usd(alert.usdValue)}</div>
+      <div class="meta">${coin(alert.chain, alert.tokenAddress, alert.token)} · ${alert.chain || ""} · ${usd(alert.usdValue)} · ${ago(alert.ts)}</div>
     </div>
     <div>
       ${canSwap ? `<button class="buy" data-mint="${alert.tokenAddress}" data-symbol="${alert.token || ""}">Buy</button>` : `<button class="ghost buy" data-open="${marketUrl(alert.chain, alert.tokenAddress)}">Open</button>`}
@@ -113,10 +149,10 @@ function renderLeaders() {
     .sort((a, b) => a.rank - b.rank)
     .map((l) => `
       <article class="row">
-        <div class="avatar">${l.rank}</div>
+        ${face(l.handle)}
         <div>
-          <div class="who">@${l.handle}</div>
-          <div class="meta">PnL ${usd(l.pnl)} · vol ${usd(l.volume)} · ${l.trades} trades</div>
+          <div class="who">#${l.rank} @${l.handle} <span class="meta">${l.name && l.name !== l.handle ? l.name : ""}</span></div>
+          <div class="meta">PnL ${usd(l.pnl)} · vol ${usd(l.volume)} · ${l.trades} trades · ${Number(l.followers || 0).toLocaleString()} follows</div>
         </div>
         <div class="meta">${(l.wallets.solana || "").slice(0, 4)}…</div>
       </article>`)
@@ -129,15 +165,15 @@ function renderBooks() {
   const crowded = rows.filter((r) => r.holders.size >= min);
   const potential = rows.filter((r) => r.action === "POTENTIAL");
   const list = (items, empty) => items.length
-    ? items.slice(0, 8).map((r) => `<div class="mini"><b>$${r.symbol}</b><span class="meta">${r.action} · overlap ${r.holders.size} · net ${usd(r.buyUsd - r.sellUsd)}</span></div>`).join("")
+    ? items.slice(0, 8).map((r) => `<div class="mini"><b>${coin(r.chain, r.address, r.symbol)}</b><span class="meta">${r.action} · overlap ${r.holders.size} · net ${usd(r.buyUsd - r.sellUsd)}</span></div>`).join("")
     : `<div class="muted">${empty}</div>`;
   $("crowdedList").innerHTML = list(crowded, "No identical-coin cluster yet");
   $("potentialList").innerHTML = list(potential, "No early leader flow yet");
   $("book").innerHTML = rows.map((r) => `
     <article class="row">
-      <div class="avatar">${r.holders.size}</div>
+      <img class="face" src="${coinSrc(r.chain, r.address)}" alt="" onerror="this.style.display='none'">
       <div>
-        <div class="who">$${r.symbol} <span class="tag ${r.action}">${r.action}</span></div>
+        <div class="who">${coin(r.chain, r.address, r.symbol)} <span class="tag ${r.action}">${r.action}</span></div>
         <div class="meta">score ${r.score.toFixed(2)} · ${r.leaders.slice(0, 4).map((h) => "@" + h).join(" ")}</div>
       </div>
       <div>
@@ -148,6 +184,14 @@ function renderBooks() {
     </article>`).join("") || `<div class="muted">Waiting for overlapping flow…</div>`;
 }
 
+function renderTicker(alerts) {
+  const bits = (alerts || []).slice(0, 16).map((a) => {
+    const side = (a.type || "tape").toUpperCase();
+    return `@${a.trader} ${side} $${a.token || "?"} ${usd(a.usdValue)}`;
+  });
+  if (bits.length) $("ticker").textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   ");
+}
+
 async function loadLeaders() {
   const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`);
   const data = await res.json();
@@ -155,10 +199,13 @@ async function loadLeaders() {
   for (const row of data.traders || []) {
     state.leaders.set(row.handle, {
       handle: row.handle,
+      name: row.displayName,
       rank: row.rank,
       pnl: row.pnlUsd,
       volume: row.volumeUsd,
       trades: row.trades,
+      followers: row.followers,
+      avatar: row.avatar || "",
       wallets: row.wallets || {},
     });
   }
@@ -166,15 +213,22 @@ async function loadLeaders() {
   $("apiStatus").textContent = `tape live · ${state.leaders.size} leaders`;
 }
 
-async function loadAlerts() {
+async function loadAlerts(seed) {
   const res = await fetch(`${API}/v2/alerts?limit=50`);
   const data = await res.json();
   const alerts = data.alerts || [];
-  alerts.reverse().forEach((a) => {
-    ingest(a, false);
-    renderFeed(a, false);
-  });
-  $("feedMeta").textContent = `${alerts.length} seeded`;
+  renderTicker(alerts);
+  let added = 0;
+  const ordered = seed ? alerts.slice().reverse() : alerts;
+  for (const a of ordered) {
+    const before = state.seen.size;
+    ingest(a, !seed);
+    if (state.seen.size > before) {
+      renderFeed(a, !seed);
+      added += 1;
+    }
+  }
+  $("feedMeta").textContent = seed ? `${alerts.length} live prints` : `${added} new · ${alerts.length} on tape`;
 }
 
 function ingest(alert, maybeTrade) {
@@ -210,7 +264,6 @@ function connectWs() {
   const ws = new WebSocket(TAPE_WS);
   ws.onopen = () => {
     $("liveDot").classList.add("on");
-    $("feedMeta").textContent = "live · keyless delay ~60s";
     log("Live tape connected");
   };
   ws.onmessage = (ev) => {
@@ -219,14 +272,61 @@ function connectWs() {
       if (msg.type === "welcome") return;
       const alert = msg.alert || msg;
       if (!alert || !alert.trader) return;
+      const before = state.seen.size;
       ingest(alert, true);
-      renderFeed(alert, true);
+      if (state.seen.size > before) renderFeed(alert, true);
     } catch (_) { /* ignore */ }
   };
   ws.onclose = () => {
     $("liveDot").classList.remove("on");
     setTimeout(connectWs, 4000);
   };
+}
+
+function connection() {
+  return new window.solanaWeb3.Connection(RPC, "confirmed");
+}
+
+async function refreshBalance() {
+  if (!state.wallet || !window.solanaWeb3) return;
+  const box = $("walletBals");
+  box.innerHTML = `<div class="meta">reading chain…</div>`;
+  try {
+    const conn = connection();
+    const pk = new window.solanaWeb3.PublicKey(state.wallet);
+    const lamports = await conn.getBalance(pk);
+    const sol = lamports / 1e9;
+    if (!state.solPrice) {
+      try {
+        const quote = await fetch(`${JUP_QUOTE}?inputMint=${SOL}&outputMint=${USDC}&amount=1000000000&slippageBps=50`).then((r) => r.json());
+        state.solPrice = Number(quote.outAmount || 0) / 1e6;
+      } catch (_) { state.solPrice = 0; }
+    }
+    const rows = [
+      `<div class="bal-row"><span>SOL</span><span><span class="amt">${sol.toFixed(4)}</span> <span class="usd">${state.solPrice ? usd(sol * state.solPrice) : ""}</span></span></div>`,
+    ];
+    try {
+      const parsed = await conn.getParsedTokenAccountsByOwner(pk, { programId: new window.solanaWeb3.PublicKey(TOKEN_PROGRAM) });
+      const tokens = parsed.value
+        .map((acc) => acc.account.data.parsed?.info)
+        .filter((info) => info && Number(info.tokenAmount?.uiAmount || 0) > 0)
+        .sort((a, b) => Number(b.tokenAmount.uiAmount) - Number(a.tokenAmount.uiAmount))
+        .slice(0, 5);
+      for (const info of tokens) {
+        const mint = info.mint;
+        const amt = Number(info.tokenAmount.uiAmount);
+        const label = mint === USDC ? "USDC" : mint.slice(0, 4);
+        const extra = mint === USDC ? usd(amt) : "";
+        rows.push(`<div class="bal-row"><span class="sym"><img class="coin" src="${coinSrc("solana", mint)}" alt="" onerror="this.style.display='none'">${label}</span><span class="amt">${amt >= 1 ? amt.toFixed(2) : amt.toPrecision(3)} ${extra}</span></div>`);
+      }
+    } catch (err) {
+      rows.push(`<div class="meta">token books skipped</div>`);
+    }
+    box.innerHTML = rows.join("");
+    $("walletStatus").textContent = `wallet ${sol.toFixed(2)} SOL`;
+  } catch (err) {
+    box.innerHTML = `<div class="meta">balance error: ${err.message || err}</div>`;
+  }
 }
 
 async function connectWallet() {
@@ -238,10 +338,10 @@ async function connectWallet() {
   }
   const res = await provider.connect();
   state.wallet = res.publicKey.toString();
-  $("walletStatus").textContent = `wallet ${state.wallet.slice(0, 4)}…${state.wallet.slice(-4)}`;
-  $("walletBox").textContent = state.wallet;
+  $("walletAddr").textContent = state.wallet;
   $("connectBtn").textContent = "Connected";
   log("Phantom connected");
+  await refreshBalance();
 }
 
 async function solLamportsForUsd(usdAmount) {
@@ -250,6 +350,7 @@ async function solLamportsForUsd(usdAmount) {
   const quote = await fetch(url).then((r) => r.json());
   const usdcOut = Number(quote.outAmount || 0) / 1e6;
   if (!usdcOut) throw new Error("No SOL price");
+  state.solPrice = usdcOut;
   return Math.max(1, Math.floor((usdAmount / usdcOut) * 1e9));
 }
 
@@ -291,6 +392,7 @@ async function proposeBuy(mint, symbol, fromAuto) {
     const signed = await window.solana.signAndSendTransaction(tx);
     log(`Signed $${symbol} ~$${size} · ${signed.signature || signed}`);
     $("botStatus").textContent = "filled / sent";
+    refreshBalance();
   } catch (err) {
     log(`Swap blocked: ${err.message || err}`);
     $("botStatus").textContent = "idle";
@@ -320,12 +422,18 @@ document.querySelectorAll(".tab").forEach((tab) => {
   };
 });
 
+setInterval(() => {
+  $("clock").textContent = new Date().toLocaleTimeString();
+}, 1000);
+
 (async function boot() {
   try {
     await loadLeaders();
-    await loadAlerts();
+    await loadAlerts(true);
     connectWs();
-    setInterval(loadLeaders, 90_000);
+    setInterval(loadLeaders, 45_000);
+    setInterval(() => loadAlerts(false).catch(() => {}), 12_000);
+    setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000);
   } catch (err) {
     $("apiStatus").textContent = "tape error";
     log(err.message || String(err));
