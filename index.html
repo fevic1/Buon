@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=39" />
-  <link rel="stylesheet" href="./pulse.css?v=39" />
+  <link rel="stylesheet" href="./styles.css?v=40" />
+  <link rel="stylesheet" href="./pulse.css?v=40" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -34,7 +34,7 @@
       <div>
         <p class="kicker">ranked tape</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">One USDC balance. Deposit on any listed network.</p>
+        <p class="sub">Graduated names come from launchpads. Cash is one Base pool.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -44,6 +44,7 @@
     </section>
     <section class="grid">
       <aside class="rail">
+        <div class="card"><div class="card-h"><h2>graduated</h2></div><div id="gradList" class="stack muted">Loading launchpads…</div></div>
         <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
       </aside>
       <section class="stage">
@@ -76,13 +77,14 @@
   <div class="toast" id="toast"></div>
   <div id="auth-root"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=39"></script>
-  <script src="./history.js?v=39"></script>
-  <script src="./wallet.js?v=39"></script>
-  <script src="./desk.js?v=39"></script>
-  <script src="./positions.js?v=39"></script>
-  <script src="./live.js?v=39"></script>
-  <script src="./ui.js?v=39"></script>
-  <script type="module" src="./privy-auth.js?v=39"></script>
+  <script src="./app.js?v=40"></script>
+  <script src="./history.js?v=40"></script>
+  <script src="./wallet.js?v=40"></script>
+  <script src="./desk.js?v=40"></script>
+  <script src="./positions.js?v=40"></script>
+  <script src="./launch.js?v=40"></script>
+  <script src="./live.js?v=40"></script>
+  <script src="./ui.js?v=40"></script>
+  <script type="module" src="./privy-auth.js?v=40"></script>
 </body>
 </html>
