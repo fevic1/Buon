@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=34" />
-  <link rel="stylesheet" href="./pulse.css?v=34" />
+  <link rel="stylesheet" href="./styles.css?v=35" />
+  <link rel="stylesheet" href="./pulse.css?v=35" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -19,6 +19,7 @@
     </nav>
     <div class="nav-right">
       <span class="pill" id="clock">--:--:--</span>
+      <button class="ghost" id="settingsBtn" type="button">Settings</button>
       <button class="ghost" id="disconnectBtn" type="button" hidden>Log out</button>
       <button class="primary" id="connectBtn" type="button">Sign in</button>
     </div>
@@ -27,7 +28,7 @@
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
       <div><p class="kicker">balance</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Sign in to deposit</div></div>
+      <div class="addr-list" id="addrList"><div class="meta" id="walletBals">Sign in to load cash</div></div>
       <div>
         <button class="primary slim" id="depositBtn" type="button">Deposit</button>
         <button class="ghost slim" id="withdrawBtn" type="button">Withdraw</button>
@@ -38,7 +39,7 @@
       <div>
         <p class="kicker">ranked tape</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">One balance. Six deposit networks.</p>
+        <p class="sub">Balance is USDC on Base + Solana. Size and RPC live in Settings.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -48,30 +49,6 @@
     </section>
     <section class="grid">
       <aside class="rail">
-        <div class="card">
-          <div class="card-h"><h2>desk</h2><span class="dot" id="liveDot"></span></div>
-          <label>Helius RPC<input id="rpcUrl" type="password" placeholder="full URL or api-key only" autocomplete="off" /></label>
-          <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
-          <label>USDC hub
-            <select id="usdcHub">
-              <option value="base" selected>Base USDC</option>
-              <option value="arbitrum">Arbitrum USDC</option>
-              <option value="bsc">BNB USDC</option>
-              <option value="ethereum">Ethereum USDC</option>
-              <option value="solana">Solana USDC</option>
-            </select>
-          </label>
-          <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
-          <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
-          <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
-          <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
-          <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">not signed in</div>
-            <div class="bals" id="walletBals"></div>
-            <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
-          </div>
-        </div>
         <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
       </aside>
       <section class="stage">
@@ -87,15 +64,39 @@
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
+  <div class="shade" id="setShade" hidden>
+    <aside class="sheet" id="settingsPanel">
+      <div class="sheet-h"><div class="grow"><div class="who">Settings</div><div class="meta">Size, take profit, optional Helius</div></div><button class="ghost slim" id="settingsClose" type="button">Close</button></div>
+      <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
+      <label>USDC hub
+        <select id="usdcHub">
+          <option value="base" selected>Base USDC</option>
+          <option value="arbitrum">Arbitrum USDC</option>
+          <option value="bsc">BNB USDC</option>
+          <option value="ethereum">Ethereum USDC</option>
+          <option value="solana">Solana USDC</option>
+        </select>
+      </label>
+      <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
+      <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
+      <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
+      <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
+      <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
+      <label>Optional Helius<input id="rpcUrl" type="password" placeholder="leave blank — public RPC is used" autocomplete="off" /></label>
+      <p class="fine">Balance reads public Base + Solana RPCs. Helius is optional if a public node rate-limits you.</p>
+      <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
+      <div class="w-addr" id="walletAddr">not signed in</div>
+    </aside>
+  </div>
   <div class="toast" id="toast"></div>
   <div id="auth-root"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=34"></script>
-  <script src="./wallet.js?v=34"></script>
-  <script src="./desk.js?v=34"></script>
-  <script src="./positions.js?v=34"></script>
-  <script src="./live.js?v=34"></script>
-  <script src="./ui.js?v=34"></script>
-  <script type="module" src="./privy-auth.js?v=34"></script>
+  <script src="./app.js?v=35"></script>
+  <script src="./wallet.js?v=35"></script>
+  <script src="./desk.js?v=35"></script>
+  <script src="./positions.js?v=35"></script>
+  <script src="./live.js?v=35"></script>
+  <script src="./ui.js?v=35"></script>
+  <script type="module" src="./privy-auth.js?v=35"></script>
 </body>
 </html>
