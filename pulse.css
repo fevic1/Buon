@@ -1,0 +1,35 @@
+button.busy {
+  animation: pulse 0.7s ease-in-out infinite;
+  filter: brightness(1.25);
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122, 115, 255, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(122, 115, 255, 0); }
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 80;
+  max-width: min(720px, calc(100vw - 24px));
+  background: #161428;
+  border: 1px solid rgba(203, 208, 235, 0.2);
+  color: #eaedff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 650;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+.toast.ok { border-color: rgba(74, 222, 128, 0.45); }
+.toast.bad { border-color: rgba(251, 113, 133, 0.55); color: #ffd4db; }
+input[type="email"], input[type="text"], #privyAppId, #privyClientId, #privyEmail, #privyCode {
+  width: 100%;
+  margin-top: 6px;
+  background: #0b0a14;
+  color: #eaedff;
+  border: 1px solid rgba(203, 208, 235, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
