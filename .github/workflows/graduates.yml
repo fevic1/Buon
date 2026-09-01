@@ -1,0 +1,31 @@
+name: Pump graduates
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch graduates
+        run: python scripts/fetch_graduates.py
+      - name: Commit snapshot
+        run: |
+          git config user.name "buon-desk"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/graduates.json
+          if git diff --cached --quiet; then
+            echo "no change"
+            exit 0
+          fi
+          git commit -m "Refresh Pump graduates snapshot"
+          git push
