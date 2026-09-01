@@ -6,7 +6,7 @@ const JUP_SWAP = "https://lite-api.jup.ag/swap/v1/swap";
 const RPCS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
 const API = atob("aHR0cHM6Ly9hcGkuZm9tb2FwaS5pbw==");
 const TAPE_WS = atob("d3NzOi8vYXBpLmZvbW9hcGkuaW8vd3MvYWxlcnRz");
-const MARKET = atob("aHR0cHM6Ly9mb21vLmZhbWlseQ==");
+const DEX = "https://api.dexscreener.com/latest/dex/tokens/";
 
 const state = {
   leaders: new Map(),
@@ -36,11 +36,6 @@ function tokenKey(symbol, address) {
 function chainSlug(chain) {
   const map = { sol: "solana", eth: "ethereum", bnb: "bsc", binance: "bsc", rh: "robinhood" };
   return map[(chain || "solana").toLowerCase()] || (chain || "solana").toLowerCase();
-}
-
-function marketUrl(chain, address) {
-  if (!address) return MARKET + "/";
-  return `${MARKET}/tokens/${chainSlug(chain)}/${address}`;
 }
 
 function coinSrc(chain, address) {
@@ -260,8 +255,7 @@ async function openTrader(handle) {
   }
   for (const book of state.tokens.values()) {
     if (book.holders.has(handle)) {
-      const key = book.key;
-      if (!byToken.has(key)) byToken.set(key, { token: book.symbol, address: book.address, chain: book.chain, buys: 0, sells: 0, buyUsd: 0, sellUsd: 0 });
+      if (!byToken.has(book.key)) byToken.set(book.key, { token: book.symbol, address: book.address, chain: book.chain, buys: 0, sells: 0, buyUsd: 0, sellUsd: 0 });
     }
   }
   openSheet(`
@@ -333,27 +327,36 @@ async function openToken(symbol, address, chain) {
     </div>
     <p class="copy">${address || "no mint yet"}</p>
     <div class="acts">
-      ${canSwap ? `<button class="buy" data-mint="${address}" data-symbol="${symbol}">Buy on desk</button>` : ""}
-      <button class="ghost" data-open="${marketUrl(chain, address)}">Token page</button>
+      ${canSwap ? `<button class="buy" data-mint="${address}" data-symbol="${symbol}">Buy on desk</button>` : `<button class="ghost" disabled>Buy on Solana only</button>`}
       ${address ? `<button class="ghost" data-copy="${address}">Copy address</button>` : ""}
     </div>
     <div class="meta">buy flow ${usd(book.buyUsd)} · sell flow ${usd(book.sellUsd)} · net ${usd(book.buyUsd - book.sellUsd)}</div>
+    <div id="sheetPairs"></div>
     <h2>leaders on it</h2>
     <div>${holders.map((h) => `<div class="hold clickable" data-trader="${h}">${face(h)}<div class="grow">@${h}</div></div>`).join("") || `<div class="muted">No ranked wallet clustered on this mint yet.</div>`}</div>
-    <p class="fine" id="sheetNote">Pulling market card…</p>
+    <p class="fine" id="sheetNote">Loading market card on desk…</p>
   `);
   if (!address) {
     $("sheetNote").textContent = "No contract on the tape yet.";
     return;
   }
   try {
-    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
+    const res = await fetch(DEX + address);
     const data = await res.json();
-    const pair = (data.pairs || [])[0];
-    if (pair) {
-      $("sheetNote").textContent = `${pair.dexId} · px $${Number(pair.priceUsd || 0).toPrecision(4)} · liq ${usd(pair.liquidity?.usd)} · 24h ${usd(pair.volume?.h24)}`;
+    const pairs = (data.pairs || []).slice(0, 4);
+    if (pairs.length) {
+      const pair = pairs[0];
+      $("sheetNote").textContent = `${pair.dexId} · ${pair.chainId} · px $${Number(pair.priceUsd || 0).toPrecision(4)}`;
+      $("sheetPairs").innerHTML = pairs.map((p) => `
+        <div class="hold">
+          <div>
+            <b>${p.baseToken?.symbol}/${p.quoteToken?.symbol}</b>
+            <div class="meta">${p.dexId} · ${p.chainId} · px $${Number(p.priceUsd || 0).toPrecision(4)} · ${Number(p.priceChange?.h24 || 0).toFixed(1)}% 24h</div>
+            <div class="meta">liq ${usd(p.liquidity?.usd)} · vol ${usd(p.volume?.h24)} · mcap ${usd(p.marketCap || p.fdv)}</div>
+          </div>
+        </div>`).join("");
     } else {
-      $("sheetNote").textContent = "No Dex card for this mint.";
+      $("sheetNote").textContent = "No market card for this mint yet.";
     }
   } catch {
     $("sheetNote").textContent = "Market card unavailable.";
@@ -422,19 +425,14 @@ function ingest(alert, maybeTrade) {
   book.last = alert.text || "";
   renderBooks();
   if (maybeTrade && $("autoBuy").checked && (actionOf(book) === "CROWDED_BID" || actionOf(book) === "POTENTIAL")) {
-    if ((book.chain || "").toLowerCase() === "solana" && book.address) {
-      proposeBuy(book.address, book.symbol, true);
-    }
+    if ((book.chain || "").toLowerCase() === "solana" && book.address) proposeBuy(book.address, book.symbol, true);
   }
   return book;
 }
 
 function connectWs() {
   const ws = new WebSocket(TAPE_WS);
-  ws.onopen = () => {
-    $("liveDot").classList.add("on");
-    log("Live tape connected");
-  };
+  ws.onopen = () => { $("liveDot").classList.add("on"); log("Live tape connected"); };
   ws.onmessage = (ev) => {
     try {
       const msg = JSON.parse(ev.data);
@@ -446,10 +444,7 @@ function connectWs() {
       if (state.seen.size > before) renderFeed(alert, true);
     } catch (_) {}
   };
-  ws.onclose = () => {
-    $("liveDot").classList.remove("on");
-    setTimeout(connectWs, 4000);
-  };
+  ws.onclose = () => { $("liveDot").classList.remove("on"); setTimeout(connectWs, 4000); };
 }
 
 async function connection() {
@@ -480,16 +475,10 @@ async function refreshBalance() {
         state.solPrice = Number(quote.outAmount || 0) / 1e6;
       } catch (_) { state.solPrice = 0; }
     }
-    const rows = [
-      `<div class="bal-row"><span>SOL</span><span><span class="amt">${sol.toFixed(4)}</span> <span class="usd">${state.solPrice ? usd(sol * state.solPrice) : ""}</span></span></div>`,
-    ];
+    const rows = [`<div class="bal-row"><span>SOL</span><span><span class="amt">${sol.toFixed(4)}</span> <span class="usd">${state.solPrice ? usd(sol * state.solPrice) : ""}</span></span></div>`];
     try {
       const parsed = await conn.getParsedTokenAccountsByOwner(pk, { programId: new window.solanaWeb3.PublicKey(TOKEN_PROGRAM) });
-      const tokens = parsed.value
-        .map((acc) => acc.account.data.parsed?.info)
-        .filter((info) => info && Number(info.tokenAmount?.uiAmount || 0) > 0)
-        .sort((a, b) => Number(b.tokenAmount.uiAmount) - Number(a.tokenAmount.uiAmount))
-        .slice(0, 5);
+      const tokens = parsed.value.map((acc) => acc.account.data.parsed?.info).filter((info) => info && Number(info.tokenAmount?.uiAmount || 0) > 0).sort((a, b) => Number(b.tokenAmount.uiAmount) - Number(a.tokenAmount.uiAmount)).slice(0, 5);
       for (const info of tokens) {
         const mint = info.mint;
         const amt = Number(info.tokenAmount.uiAmount);
@@ -523,9 +512,7 @@ async function connectWallet() {
 }
 
 async function solLamportsForUsd(usdAmount) {
-  const amount = 1_000_000_000;
-  const url = `${JUP_QUOTE}?inputMint=${SOL}&outputMint=${USDC}&amount=${amount}&slippageBps=50`;
-  const quote = await fetch(url).then((r) => r.json());
+  const quote = await fetch(`${JUP_QUOTE}?inputMint=${SOL}&outputMint=${USDC}&amount=1000000000&slippageBps=50`).then((r) => r.json());
   const usdcOut = Number(quote.outAmount || 0) / 1e6;
   if (!usdcOut) throw new Error("No SOL price");
   state.solPrice = usdcOut;
@@ -534,35 +521,20 @@ async function solLamportsForUsd(usdAmount) {
 
 async function proposeBuy(mint, symbol, fromAuto) {
   if (state.busy) return;
-  if (!state.wallet) {
-    log("Connect Phantom first");
-    return;
-  }
-  if (!window.solanaWeb3) {
-    log("Solana web3 failed to load");
-    return;
-  }
+  if (!state.wallet) { log("Connect Phantom first"); return; }
+  if (!window.solanaWeb3) { log("Solana web3 failed to load"); return; }
   const size = Number($("sizeUsd").value || 20);
-  if (size <= 0 || size > 500) {
-    log("Size must be 1–500 USD");
-    return;
-  }
+  if (size <= 0 || size > 500) { log("Size must be 1–500 USD"); return; }
   state.busy = true;
   $("botStatus").textContent = fromAuto ? "bot proposing" : "quoting";
   try {
     const lamports = await solLamportsForUsd(size);
-    const quoteUrl = `${JUP_QUOTE}?inputMint=${SOL}&outputMint=${mint}&amount=${lamports}&slippageBps=150`;
-    const quote = await fetch(quoteUrl).then((r) => r.json());
+    const quote = await fetch(`${JUP_QUOTE}?inputMint=${SOL}&outputMint=${mint}&amount=${lamports}&slippageBps=150`).then((r) => r.json());
     if (quote.error || quote.errorCode) throw new Error(quote.error || quote.errorCode);
     const swap = await fetch(JUP_SWAP, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        quoteResponse: quote,
-        userPublicKey: state.wallet,
-        wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true,
-      }),
+      body: JSON.stringify({ quoteResponse: quote, userPublicKey: state.wallet, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true }),
     }).then((r) => r.json());
     if (!swap.swapTransaction) throw new Error(swap.error || "No swap tx");
     const raw = Uint8Array.from(atob(swap.swapTransaction), (c) => c.charCodeAt(0));
@@ -580,14 +552,8 @@ async function proposeBuy(mint, symbol, fromAuto) {
 }
 
 function saveDesk() {
-  localStorage.setItem("buon_desk", JSON.stringify({
-    sizeUsd: $("sizeUsd").value,
-    minAlert: $("minAlert").value,
-    minOverlap: $("minOverlap").value,
-    autoBuy: $("autoBuy").checked,
-  }));
+  localStorage.setItem("buon_desk", JSON.stringify({ sizeUsd: $("sizeUsd").value, minAlert: $("minAlert").value, minOverlap: $("minOverlap").value, autoBuy: $("autoBuy").checked }));
 }
-
 function loadDesk() {
   try {
     const raw = JSON.parse(localStorage.getItem("buon_desk") || "{}");
@@ -602,36 +568,17 @@ function loadDesk() {
 document.addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (btn?.dataset.close != null) { closeSheet(); return; }
-  if (btn?.dataset.mint) {
-    ev.stopPropagation();
-    proposeBuy(btn.dataset.mint, btn.dataset.symbol, false);
-    return;
-  }
-  if (btn?.dataset.copy) {
-    navigator.clipboard?.writeText(btn.dataset.copy);
-    log("Copied");
-    return;
-  }
-  if (btn?.dataset.open) {
-    window.open(btn.dataset.open, "_blank");
-    return;
-  }
+  if (btn?.dataset.mint) { ev.stopPropagation(); proposeBuy(btn.dataset.mint, btn.dataset.symbol, false); return; }
+  if (btn?.dataset.copy) { navigator.clipboard?.writeText(btn.dataset.copy); log("Copied"); return; }
   const hit = ev.target.closest("[data-trader], [data-token]");
   if (!hit) return;
   if (hit.dataset.trader) openTrader(hit.dataset.trader);
   else if (hit.dataset.token || hit.dataset.address) openToken(hit.dataset.token, hit.dataset.address, hit.dataset.chain);
 });
-
-$("shade").addEventListener("click", (ev) => {
-  if (ev.target.id === "shade") closeSheet();
-});
-
+$("shade").addEventListener("click", (ev) => { if (ev.target.id === "shade") closeSheet(); });
 $("connectBtn").onclick = () => connectWallet().catch((e) => log(e.message));
 $("refreshBal").onclick = () => refreshBalance().catch((e) => log(e.message));
-$("autoBuy").onchange = () => {
-  $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle";
-  saveDesk();
-};
+$("autoBuy").onchange = () => { $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle"; saveDesk(); };
 ["sizeUsd", "minAlert", "minOverlap"].forEach((id) => { $(id).onchange = saveDesk; });
 $("tapeKey").onchange = () => {
   state.key = $("tapeKey").value.trim();
@@ -639,7 +586,6 @@ $("tapeKey").onchange = () => {
   else localStorage.removeItem("buon_key");
   log(state.key ? "Tape key saved on this browser" : "Tape key cleared");
 };
-
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.onclick = () => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("on"));
@@ -648,9 +594,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     $(`view-${tab.dataset.view}`).classList.add("on");
   };
 });
-
 setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
-
 (async function boot() {
   loadDesk();
   try {
