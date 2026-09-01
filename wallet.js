@@ -11,10 +11,8 @@
   function draw() {
     var list = document.getElementById("addrList");
     if (!list || !state.wallet) return;
-    var extra = "";
-    if (state.privyUser) extra = "<div class=\"meta\">Also signed into Privy as email</div>";
     list.innerHTML = "<div class=\"addr-row\"><span class=\"meta\">SOL</span><code>" + state.wallet + "</code><button class=\"ghost\" data-copy=\"" + state.wallet + "\" type=\"button\">Copy</button></div>" +
-      "<div class=\"meta\">This is the spend account. Send Solana USDC here, then Buy.</div>" + extra;
+      "<div class=\"meta\">Key is in this browser only. Export it if you will fund this address.</div>";
     var btn = document.getElementById("connectBtn");
     var disc = document.getElementById("disconnectBtn");
     if (btn) btn.textContent = "Cash account";
@@ -53,6 +51,13 @@
     var conn = await connection();
     return await conn.sendRawTransaction(vtx.serialize(), { skipPreflight: false });
   };
+  window.exportCashAccount = function () {
+    var kp = state.kp || loadKp();
+    if (!kp) { log("No key in this browser"); return; }
+    var raw = JSON.stringify(Array.from(kp.secretKey));
+    if (navigator.clipboard) navigator.clipboard.writeText(raw);
+    log("Secret key copied. It is a 64-number JSON array. Anyone with it can spend the cash.");
+  };
   window.disconnectWallet = function () {
     state.kp = null;
     state.wallet = null;
@@ -63,12 +68,12 @@
     document.getElementById("cashAmt").textContent = "\u2014 USDC";
     document.getElementById("gasAmt").textContent = "SOL gas \u2014";
     document.getElementById("addrList").innerHTML = "<div class=\"meta\">Cash account locked</div>";
-    log("Logged out. Key stays in this browser until Wipe local.");
+    log("Locked. Key remains until Wipe local.");
   };
   window.wipeCashAccount = function () {
     localStorage.removeItem(STORE);
     disconnectWallet();
-    log("Cash key wiped");
+    log("Cash key wiped from this browser");
   };
   var c = document.getElementById("connectBtn");
   if (c) c.onclick = function () { openCashAccount(); };
@@ -76,6 +81,8 @@
   if (d) d.onclick = function () { disconnectWallet(); };
   var w = document.getElementById("wipeBtn");
   if (w) w.onclick = function () { wipeCashAccount(); };
+  var e = document.getElementById("exportBtn");
+  if (e) e.onclick = function () { exportCashAccount(); };
   function boot() {
     if (window.solanaWeb3) openCashAccount();
     else setTimeout(boot, 200);
