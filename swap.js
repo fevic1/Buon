@@ -5,7 +5,8 @@ const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
 const RPC = {
   8453: ["https://mainnet.base.org", "https://base.llamarpc.com", "https://base.publicnode.com"],
   1: ["https://cloudflare-eth.com"],
-  56: ["https://bsc-dataseed.binance.org"]
+  56: ["https://bsc-dataseed.binance.org"],
+  4663: ["https://rpc.mainnet.chain.robinhood.com"]
 };
 const CHAIN = {
   ethereum: 1, eth: 1,
@@ -109,16 +110,16 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
   try {
     if (!window.BUON_TK) throw new Error("Turnkey not ready");
     var eth = BigInt(await rpc(8453, "eth_getBalance", [POOL, "latest"]));
-    if (eth === 0n) throw new Error("Pool has 0 ETH on Base. Send a little ETH to 0xB1AC… for gas. USDC cannot pay the first network fee.");
+    if (eth === 0n) throw new Error("Pool has 0 ETH on Base. Send a little ETH to 0xB1AC… for gas.");
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var amount = String(Math.floor(size * 1e6));
     var toChain = destChain(chain, mint);
     if (!mint) throw new Error("no mint");
-    if (toChain === 4663) throw new Error("No public swap route for Robinhood yet — LiFi denies that chain");
-    logLine("quoting $" + symbol + " on " + toChain + " for " + size + " USDC");
+    logLine("quoting $" + symbol + " Base→" + toChain + " for " + size + " USDC");
     var q = await lifiQuote(8453, toChain, mint, amount, POOL);
+    logLine((q.tool || "dex") + " route");
     var tx = q.transactionRequest;
-    if (!tx || !tx.to || !tx.data) throw new Error("no executable route on this chain");
+    if (!tx || !tx.to || !tx.data) throw new Error("no executable route");
     var spend = q.estimate && q.estimate.approvalAddress;
     if (spend) {
       var have = await allowance(spend);
