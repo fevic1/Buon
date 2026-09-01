@@ -8,7 +8,7 @@
     try { return JSON.parse(localStorage.getItem(STORE) || "[]").filter(real); }
     catch (e) { return []; }
   }
-  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real).slice(0, 20))); }
+  function save(list) { localStorage.setItem(STORE, JSON.stringify(list.filter(real).slice(0, 20)); }
   function tpPct() { return Math.max(1, Number((document.getElementById("tpPct") || {}).value || 30)); }
   function tpUsd() { return Math.max(0, Number((document.getElementById("tpUsd") || {}).value || 50)); }
   function usd(n) {
@@ -135,14 +135,6 @@
           p.entry = px;
           changed = true;
         }
-        var cost = Number(p.usdIn || 0);
-        var now = Number(p.valueUsd || 0);
-        var pnl = now - cost;
-        var pct = cost ? (pnl / cost) * 100 : 0;
-        if (document.getElementById("autoTp") && document.getElementById("autoTp").checked && now && (pnl >= tpUsd() || pct >= tpPct())) {
-          log("TP hit $" + p.symbol + " " + usd(pnl));
-          await window.sellPosition(i);
-        }
       } catch (e) {}
     }
     if (changed) save(list);
@@ -152,8 +144,18 @@
   window.sellPosition = async function (i) {
     var list = load();
     var p = list[i];
-    if (!p) return;
-    log("Take profit $" + (p.symbol || "") + " — route back to Base USDC next");
+    if (!p) return false;
+    try {
+      if (typeof window.deskSell !== "function") throw new Error("sell route not loaded");
+      await window.deskSell(p);
+      list = load().filter(function (row) { return String(row.mint).toLowerCase() !== String(p.mint).toLowerCase(); });
+      save(list);
+      draw();
+      return true;
+    } catch (err) {
+      log("close failed: " + (err.message || err));
+      return false;
+    }
   };
 
   document.addEventListener("click", function (ev) {
@@ -169,13 +171,10 @@
       if (p && typeof window.deskBuy === "function") window.deskBuy(p.mint, p.symbol, false, p.chain);
       return;
     }
-    if (cancel) {
-      list.splice(Number(cancel.dataset.cancel), 1);
-      save(list);
-      draw();
-      return;
+    if (cancel || sell) {
+      var idx = Number((cancel || sell).dataset.cancel || (cancel || sell).dataset.sell);
+      window.sellPosition(idx);
     }
-    if (sell) window.sellPosition(Number(sell.dataset.sell));
   }, true);
 
   draw();
