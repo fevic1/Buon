@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>Buon — leader tape</title>
-  <link rel="stylesheet" href="./styles.css?v=8" />
+  <title>Buon — cash account</title>
+  <link rel="stylesheet" href="./styles.css?v=9" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -19,22 +19,26 @@
     </nav>
     <div class="nav-right">
       <span class="pill" id="clock">--:--:--</span>
-      <button class="ghost" id="disconnectBtn" type="button" hidden>Disconnect</button>
-      <button class="primary" id="connectBtn">Connect wallet</button>
+      <button class="ghost" id="disconnectBtn" type="button" hidden>Log out</button>
+      <button class="primary" id="connectBtn">Create cash account</button>
     </div>
   </header>
   <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
-      <div><p class="kicker">cash</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
-      <div class="addr-list" id="addrList"><div class="meta">Connect Phantom to load USDC cash</div></div>
-      <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
+      <div><p class="kicker">cash account</p><div class="cash-amt" id="cashAmt">— USDC</div><div class="meta" id="gasAmt">SOL gas —</div></div>
+      <div class="addr-list" id="addrList"><div class="meta">Create a cash account. Deposit Solana USDC to the address it shows.</div></div>
+      <div>
+        <button class="ghost slim" id="refreshBalTop" type="button">Refresh</button>
+        <button class="ghost slim" id="exportBtn" type="button">Export key</button>
+        <button class="ghost slim" id="wipeBtn" type="button">Wipe account</button>
+      </div>
     </section>
     <section class="hero-strip">
       <div>
-        <p class="kicker">buon desk · official USDC mint</p>
+        <p class="kicker">in-app cash account · USDC</p>
         <h1>where the tape is ranked, not guessed.</h1>
-        <p class="sub">Disconnect is next to Connect. Cash uses official Solana USDC.</p>
+        <p class="sub">Same model as the social desk: an internal cash account, USDC in, signed buys out. Phantom is not the trader.</p>
       </div>
       <div class="status-pills">
         <span class="pill" id="apiStatus">tape …</span>
@@ -50,10 +54,10 @@
           <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
           <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto when a Solana USDC market exists</span></label>
-          <p class="fine">Official mint EPjFWdd5…Dt1v. Keep ~0.02 SOL for ATA rent.</p>
+          <p class="fine">Send Circle USDC on Solana to the cash account address. Keep a little SOL for rent.</p>
           <label>Tape key<input type="password" id="tapeKey" placeholder="optional" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
-            <div class="w-addr" id="walletAddr">Addresses on cash bar</div>
+            <div class="w-addr" id="walletAddr">Cash account lives in this browser</div>
             <div class="bals" id="walletBals"></div>
             <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
           </div>
@@ -72,10 +76,11 @@
     </section>
   </main>
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
-  <footer class="foot">Official Solana USDC only for buys.</footer>
+  <footer class="foot">Internal cash account signs here. Not Phantom.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=8"></script>
-  <script src="./desk.js?v=8"></script>
-  <script src="./live.js?v=8"></script>
+  <script src="./app.js?v=9"></script>
+  <script src="./wallet.js?v=9"></script>
+  <script src="./desk.js?v=9"></script>
+  <script src="./live.js?v=9"></script>
 </body>
 </html>
