@@ -8,17 +8,11 @@ const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const ASSOC = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const API = "https://api.fomoapi.io";
 
-function rpcUrl() {
-  return localStorage.getItem("buon_rpc") || "";
-}
+function rpcUrl() { return localStorage.getItem("buon_rpc") || ""; }
 async function solRpc(method, params) {
   var url = rpcUrl();
-  if (!url) throw new Error("Add a Helius RPC in cash to read balances");
-  var res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
-  });
+  if (!url) throw new Error("Paste Helius RPC under cash");
+  var res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
   var data = await res.json();
   if (data.error) throw new Error(data.error.message);
   return data.result;
@@ -82,21 +76,15 @@ function Desk() {
         var bal = await solRpc("getBalance", [solAddr]);
         setSolLamports(Number((bal && bal.value) || 0) / 1e9);
         setSolUsdcAmt(await solUsdc(solAddr));
-      } catch (e) {
-        setNote(e.message || String(e));
-      }
+      } catch (e) { setNote(e.message || String(e)); }
     })();
   }, [authenticated, solAddr, rpcDraft]);
 
   function saveRpc() {
     var v = rpcDraft.trim();
     if (/^[0-9a-f-]{8,}$/i.test(v)) v = "https://mainnet.helius-rpc.com/?api-key=" + v;
-    if (v) {
-      localStorage.setItem("buon_rpc", v);
-      setRpcDraft(v);
-    }
+    if (v) { localStorage.setItem("buon_rpc", v); setRpcDraft(v); }
   }
-
   async function send() {
     setBusy(true);
     try { await emailLogin.sendCode({ email: email.trim() }); setSent(true); setNote("Code sent"); }
@@ -109,26 +97,32 @@ function Desk() {
     catch (e) { setNote(e.message || String(e)); }
     setBusy(false);
   }
+  function copy(v) { navigator.clipboard.writeText(v); setNote("Copied"); }
+
+  var potentials = [];
+  tape.forEach(function (a) {
+    var t = a.token;
+    if (!t) return;
+    if (!potentials.find(function (p) { return p.token === t; })) potentials.push(a);
+  });
 
   function header(right) {
     return h("header", { className: "nav" },
       h("div", { className: "brand" }, h("span", { className: "word" }, "buon"), h("span", { className: "badge" }, "desk")),
       h("nav", { className: "tabs" },
-        h("button", { className: "tab on" }, "feed"),
-        h("button", { className: "tab" }, "leaderboard"),
-        h("button", { className: "tab" }, "overlap")
+        h("button", { className: "tab on", type: "button" }, "feed"),
+        h("button", { className: "tab", type: "button" }, "leaderboard"),
+        h("button", { className: "tab", type: "button" }, "overlap")
       ),
       h("div", { className: "nav-right" }, right)
     );
   }
-
   function ticker() {
-    var bits = tape.slice(0, 14).map(function (a) {
+    var bits = tape.slice(0, 16).map(function (a) {
       return "@" + (a.trader || "?") + " " + String(a.type || "tape").toUpperCase() + " $" + (a.token || "?") + " " + usd(a.usdValue);
     }).join("   ·   ");
     return h("div", { className: "ticker-wrap" }, h("div", { className: "ticker" }, bits || "waiting on live tape…"));
   }
-
   function feed() {
     return h("section", { className: "stage" },
       h("div", { className: "card-h tight" }, h("h2", null, "live feed"), h("span", { className: "quiet" }, tape.length + " on tape")),
@@ -137,8 +131,25 @@ function Desk() {
           return h("article", { className: "row", key: i },
             h("div", { className: "avatar" }, String(a.trader || "?").slice(0, 2).toUpperCase()),
             h("div", null,
-              h("div", { className: "who" }, "@" + (a.trader || "unknown"), " ", h("span", { className: "tag " + (a.type || "") }, a.type || "tape")),
+              h("div", { className: "who" }, "@" + (a.trader || "unknown"), h("span", { className: "tag " + (a.type || "") }, a.type || "tape")),
               h("div", { className: "meta" }, "$" + (a.token || "?") + " · " + (a.chain || "") + " · " + usd(a.usdValue) + " · " + ago(a.ts))
+            ),
+            h("button", { className: "buy", type: "button", onClick: function () { setNote("Fund " + (solAddr || "the Solana wallet") + " first"); } }, "Buy")
+          );
+        })
+      )
+    );
+  }
+  function pot() {
+    return h("aside", { className: "rail" },
+      h("div", { className: "card" },
+        h("h2", null, "potential"),
+        potentials.slice(0, 8).map(function (a, i) {
+          return h("div", { className: "row", key: i, style: { padding: "8px 0", background: "transparent" } },
+            h("div", { className: "avatar" }, "$"),
+            h("div", null,
+              h("div", { className: "who" }, "$" + a.token),
+              h("div", { className: "meta" }, (a.chain || "") + " · " + usd(a.usdValue))
             )
           );
         })
@@ -157,26 +168,25 @@ function Desk() {
           h("div", null,
             h("p", { className: "kicker" }, "cash account"),
             h("h1", null, "where the tape is ranked, not guessed."),
-            h("p", { className: "sub" }, "Sign in with email, Google, Apple, or X. Your wallets are created on login.")
+            h("p", { className: "sub" }, "Sign in with email, Google, Apple, or X.")
           )
         ),
-        h("section", { className: "grid" },
+        h("section", { className: "grid two" },
           h("aside", { className: "rail" },
             h("div", { className: "card" },
               h("h2", null, "open account"),
-              h("p", { className: "fine" }, "Google / Apple / X use the Sign in button. Those providers must be enabled in the project auth settings or they return Not allowed."),
               h("label", null, "Email", h("input", { value: email, onChange: function (e) { setEmail(e.target.value); }, placeholder: "you@email.com" })),
               h("button", { className: "ghost slim", disabled: busy || !email, onClick: send }, "Send code"),
               sent ? h("div", null,
                 h("label", null, "Code", h("input", { value: code, onChange: function (e) { setCode(e.target.value); } })),
-                h("button", { className: "primary", disabled: busy || !code, onClick: verify }, "Open desk")
+                h("button", { className: "primary slim", disabled: busy || !code, onClick: verify }, "Open desk")
               ) : null
             )
           ),
           feed()
         )
       ),
-      note ? h("div", { className: "toast show", id: "toast" }, note) : null
+      note ? h("div", { className: "toast" }, note) : null
     );
   }
 
@@ -195,22 +205,27 @@ function Desk() {
           h("div", { className: "meta" }, "SOL gas " + (solLamports == null ? "—" : solLamports.toFixed(4)))
         ),
         h("div", { className: "addr-list" },
-          h("div", { className: "addr-row" }, h("span", { className: "meta" }, "SOL"), h("code", null, solAddr || "—"), solAddr ? h("button", { className: "ghost", onClick: function () { navigator.clipboard.writeText(solAddr); } }, "Copy") : null),
-          h("div", { className: "addr-row" }, h("span", { className: "meta" }, "EVM"), h("code", null, ethAddr || "—"), ethAddr ? h("button", { className: "ghost", onClick: function () { navigator.clipboard.writeText(ethAddr); } }, "Copy") : null),
-          h("label", null, "Solana RPC", h("input", { value: rpcDraft, onChange: function (e) { setRpcDraft(e.target.value); }, onBlur: saveRpc, placeholder: "Helius RPC URL" }))
+          h("div", { className: "addr-row" }, h("span", { className: "meta" }, "SOL"), h("code", { title: solAddr }, solAddr || "—"), solAddr ? h("button", { className: "ghost", onClick: function () { copy(solAddr); } }, "Copy") : null),
+          h("div", { className: "addr-row" }, h("span", { className: "meta" }, "EVM"), h("code", { title: ethAddr }, ethAddr || "—"), ethAddr ? h("button", { className: "ghost", onClick: function () { copy(ethAddr); } }, "Copy") : null)
+        ),
+        h("div", { className: "rpc-row" },
+          h("label", null, "Solana RPC",
+            h("input", { value: rpcDraft, onChange: function (e) { setRpcDraft(e.target.value); }, onBlur: saveRpc, placeholder: "https://mainnet.helius-rpc.com/?api-key=…" })
+          )
         )
       ),
       h("section", { className: "grid" },
         h("aside", { className: "rail" },
           h("div", { className: "card" },
             h("h2", null, "desk"),
-            h("p", { className: "fine" }, "This Solana wallet is empty until you send Solana USDC and a little SOL to the SOL line above.")
+            h("p", { className: "fine" }, "Send Solana USDC and ~0.02 SOL to the SOL address. Then Buy on a solana tape line can sign with this account.")
           )
         ),
-        feed()
+        feed(),
+        pot()
       )
     ),
-    note ? h("div", { className: "toast show" }, note) : null
+    note ? h("div", { className: "toast" }, note) : null
   );
 }
 
