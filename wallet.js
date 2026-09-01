@@ -7,18 +7,10 @@
     { id: "monad", name: "Monad", kind: "evm", send: "Monad USDC", gas: "MON" },
     { id: "robinhood", name: "Robinhood Chain", kind: "evm", send: "USDC or USDG", gas: "ETH" }
   ];
-
   function addrFor(kind) {
     return kind === "sol" ? (state.wallet || "") : (state.evm || "");
   }
-
   function draw() {
-    var list = document.getElementById("addrList");
-    if (list) {
-      list.innerHTML = (state.wallet || state.evm)
-        ? "<div class=\"meta\">Deposit on any of the six networks. Mother cash is Base USDC.</div>"
-        : "<div class=\"meta\">Sign in to deposit</div>";
-    }
     var btn = document.getElementById("connectBtn");
     if (btn) btn.textContent = state.email || (state.wallet || state.evm ? "Account" : "Sign in");
     var d = document.getElementById("disconnectBtn");
@@ -28,8 +20,7 @@
     var wa = document.getElementById("walletAddr");
     if (wa) wa.textContent = (state.wallet || state.evm) ? "signed in" : "not signed in";
   }
-
-  function chainRows(mode) {
+  function chainRows() {
     return CHAINS.map(function (c) {
       var a = addrFor(c.kind);
       var short = a ? a.slice(0, 6) + "…" + a.slice(-4) : "sign in first";
@@ -39,32 +30,28 @@
         "</div>";
     }).join("");
   }
-
   window.openDeposit = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
       "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">Same two keys. Six networks.</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">Solana uses the Solana key. Base, Ethereum, BNB, Monad, and Robinhood use the EVM key. Sweep lands as Base USDC.</p>" +
-      chainRows("in")
+      "<p class=\"fine\">Solana uses the Solana key. The other five use the EVM key.</p>" +
+      chainRows()
     );
   };
-
   window.openWithdraw = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">Pick the network the destination uses</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">Withdraw sends from the same key that received on that chain. Paste a destination after the route is signed.</p>" +
-      chainRows("out") +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">Pick the destination network</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      chainRows() +
       "<label>Destination<input id=\"wdDest\" placeholder=\"address on the chosen chain\" autocomplete=\"off\" /></label>" +
       "<label>Amount USDC<input id=\"wdAmt\" type=\"number\" min=\"1\" value=\"10\" /></label>" +
       "<button class=\"primary slim\" type=\"button\" id=\"wdGo\">Request withdraw</button>"
     );
     var go = document.getElementById("wdGo");
     if (go) go.onclick = function () {
-      log("Withdraw queued for signing — destination " + ((document.getElementById("wdDest") || {}).value || ""));
+      log("Withdraw queued — " + ((document.getElementById("wdDest") || {}).value || ""));
     };
   };
-
   window.drawPrivyAccount = function (info) {
     info = info || {};
     state.wallet = info.sol || "";
@@ -72,7 +59,7 @@
     state.email = info.email || "";
     state.kp = null;
     draw();
-    if (typeof refreshBalance === "function" && state.wallet) refreshBalance();
+    if (typeof refreshBalance === "function") refreshBalance();
   };
   window.openCashAccount = function () {
     if (typeof window.buonLogin === "function") window.buonLogin();
@@ -96,7 +83,6 @@
     if (d) d.hidden = true;
     draw();
   };
-
   var c = document.getElementById("connectBtn");
   if (c) c.onclick = function () { openCashAccount(); };
   var out = document.getElementById("disconnectBtn");
