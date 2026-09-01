@@ -33,11 +33,26 @@
         "</div>";
     }).join("");
   }
+  window.openCashMenu = function () {
+    if (typeof openSheet !== "function") return;
+    openSheet(
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Cash</div><div class=\"meta\">Pool actions</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      "<button class=\"ghost cash-action\" type=\"button\" id=\"menuDeposit\">Deposit</button>" +
+      "<button class=\"ghost cash-action\" type=\"button\" id=\"menuWithdraw\">Withdraw</button>" +
+      "<button class=\"ghost cash-action\" type=\"button\" id=\"menuRefresh\">Refresh</button>"
+    );
+    var d = document.getElementById("menuDeposit");
+    var w = document.getElementById("menuWithdraw");
+    var r = document.getElementById("menuRefresh");
+    if (d) d.onclick = function () { openDeposit(); };
+    if (w) w.onclick = function () { openWithdraw(); };
+    if (r) r.onclick = function () { if (typeof refreshBalance === "function") refreshBalance(); };
+  };
   window.openDeposit = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
       "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">One pool. Prefer Base USDC.</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">Test pool is the Turnkey Base wallet. Send USDC only. Do not send SOL or ETH as cash.</p>" +
+      "<p class=\"fine\">Send USDC only.</p>" +
       chainRows()
     );
   };
@@ -82,9 +97,7 @@
   if (c) c.onclick = function () { openCashAccount(); };
   var out = document.getElementById("disconnectBtn");
   if (out) out.onclick = function () { disconnectWallet(); };
-  var dep = document.getElementById("depositBtn");
-  if (dep) dep.onclick = function () { openDeposit(); };
-  var wd = document.getElementById("withdrawBtn");
-  if (wd) wd.onclick = function () { openWithdraw(); };
+  var plus = document.getElementById("plusBtn");
+  if (plus) plus.onclick = function () { openCashMenu(); };
   draw();
 })();
