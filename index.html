@@ -4,18 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=44" />
-  <link rel="stylesheet" href="./pulse.css?v=44" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css?v=45" />
+  <link rel="stylesheet" href="./pulse.css?v=45" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="sky"></div>
   <header class="nav">
     <div class="brand"><span class="word">buon</span><span class="badge">desk</span></div>
     <nav class="tabs" id="tabs">
-      <button class="tab on" data-view="feed" type="button">feed</button>
-      <button class="tab" data-view="leaders" type="button">leaderboard</button>
-      <button class="tab" data-view="book" type="button">overlap</button>
+      <button class="tab on" data-view="feed" type="button">Feed</button>
+      <button class="tab" data-view="leaders" type="button">Leaders</button>
+      <button class="tab" data-view="book" type="button">Overlap</button>
     </nav>
     <div class="nav-right">
       <span class="pill" id="clock">--:--:--</span>
@@ -27,35 +27,38 @@
   <div class="ticker-wrap"><div class="ticker" id="ticker">waiting on live tape…</div></div>
   <main class="shell">
     <section class="cash-bar card" id="cashBar">
-      <div><p class="kicker">balance</p><div class="cash-amt" id="cashAmt">0.00 USDC</div></div>
+      <div>
+        <p class="kicker">Total cash</p>
+        <div class="cash-amt" id="cashAmt">0.00 USDC</div>
+      </div>
       <button class="plus" id="plusBtn" type="button" aria-label="Cash actions">+</button>
     </section>
-    <section class="hero-strip">
+    <div class="status-pills">
+      <span class="pill" id="apiStatus">tape …</span>
+      <span class="pill" id="walletStatus">wallet off</span>
+      <span class="pill" id="botStatus">bot idle</span>
+    </div>
+    <section class="hero-strip" hidden>
       <div>
         <p class="kicker">ranked tape</p>
         <h1>where the tape is ranked, not guessed.</h1>
         <p class="sub">Graduated names come from launchpads. Cash is one Base pool.</p>
       </div>
-      <div class="status-pills">
-        <span class="pill" id="apiStatus">tape …</span>
-        <span class="pill" id="walletStatus">wallet off</span>
-        <span class="pill" id="botStatus">bot idle</span>
-      </div>
     </section>
     <section class="grid">
       <aside class="rail">
-        <div class="card"><div class="card-h"><h2>graduated</h2></div><div id="gradList" class="stack muted">Loading launchpads…</div></div>
-        <div class="card"><div class="card-h"><h2>identical coins</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
+        <div class="card"><div class="card-h"><h2>Graduated</h2></div><div id="gradList" class="stack muted">Loading launchpads…</div></div>
+        <div class="card"><div class="card-h"><h2>Identical</h2></div><div id="crowdedList" class="stack muted">Waiting for tape…</div></div>
       </aside>
       <section class="stage">
-        <div id="view-feed" class="view on"><div class="card-h tight"><h2>live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
-        <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h legends</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
-        <div id="view-book" class="view"><div class="card-h tight"><h2>ranked book</h2><span class="quiet">overlap</span></div><div id="book" class="book"></div></div>
+        <div id="view-feed" class="view on"><div class="card-h tight"><h2>Live feed</h2><span class="quiet" id="feedMeta">connecting</span></div><div id="feed" class="feed"></div></div>
+        <div id="view-leaders" class="view"><div class="card-h tight"><h2>24h leaders</h2><span class="quiet">ranked PnL</span></div><div id="leaders" class="leaders"></div></div>
+        <div id="view-book" class="view"><div class="card-h tight"><h2>Ranked book</h2><span class="quiet">overlap</span></div><div id="book" class="book"></div></div>
       </section>
       <aside class="rail">
-        <div class="card"><div class="card-h"><h2>positions</h2></div><div id="posList" class="stack muted">No buys yet</div></div>
-        <div class="card"><div class="card-h"><h2>potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
-        <div class="card"><div class="card-h"><h2>activity</h2></div><div id="histList" class="stack muted">No cash events yet</div><div id="log" class="log muted"></div></div>
+        <div class="card"><div class="card-h"><h2>Positions</h2></div><div id="posList" class="stack muted">No buys yet</div></div>
+        <div class="card"><div class="card-h"><h2>Potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
+        <div class="card"><div class="card-h"><h2>Activity</h2></div><div id="histList" class="stack muted">No cash events yet</div><div id="log" class="log muted"></div></div>
       </aside>
     </section>
   </main>
@@ -85,18 +88,18 @@
   <div class="toast" id="toast"></div>
   <div id="auth-root"></div>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=44"></script>
-  <script src="./history.js?v=44"></script>
-  <script src="./wallet.js?v=44"></script>
-  <script src="./keys.js?v=44"></script>
-  <script src="./desk.js?v=44"></script>
-  <script src="./positions.js?v=44"></script>
-  <script src="./launch.js?v=44"></script>
-  <script src="./live.js?v=44"></script>
-  <script src="./ui.js?v=44"></script>
-  <script type="module" src="./privy-auth.js?v=44"></script>
-  <script type="module" src="./turnkey.js?v=44"></script>
-  <script type="module" src="./swap.js?v=44"></script>
-  <script src="./strategy.js?v=44"></script>
+  <script src="./app.js?v=45"></script>
+  <script src="./history.js?v=45"></script>
+  <script src="./wallet.js?v=45"></script>
+  <script src="./keys.js?v=45"></script>
+  <script src="./desk.js?v=45"></script>
+  <script src="./positions.js?v=45"></script>
+  <script src="./launch.js?v=45"></script>
+  <script src="./live.js?v=45"></script>
+  <script src="./ui.js?v=45"></script>
+  <script type="module" src="./privy-auth.js?v=45"></script>
+  <script type="module" src="./turnkey.js?v=45"></script>
+  <script type="module" src="./swap.js?v=45"></script>
+  <script src="./strategy.js?v=45"></script>
 </body>
 </html>
