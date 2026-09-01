@@ -41,19 +41,25 @@
     var raw = await evmRpc(BASE_RPCS, { jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: USDC_BASE, data: data }, "latest"] });
     return Number(BigInt(raw || "0x0")) / 1e6;
   }
-  function paintCash(base, ok) {
-    if (!ok) return;
+  function paintCash(base) {
     state.cashUsdc = Number(base || 0);
+    localStorage.setItem(LAST, String(state.cashUsdc));
     var amt = document.getElementById("cashAmt");
     if (amt) amt.textContent = Number(base || 0).toFixed(2) + " USDC";
+    var st = document.getElementById("walletStatus");
+    if (st) st.textContent = "pool " + Number(base || 0).toFixed(2);
     if (typeof notePoolBalance === "function") notePoolBalance(base);
   }
   window.refreshBalance = window.deskRefresh = async function () {
     var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;
     try {
       var base = await baseUsdc(pool);
-      paintCash(base, true);
-    } catch (err) {}
+      paintCash(base);
+    } catch (err) {
+      var st = document.getElementById("walletStatus");
+      if (st) st.textContent = "cash rpc fail";
+      if (typeof log === "function") log("cash: " + (err.message || err));
+    }
   };
   window.openSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = false; };
   window.closeSettings = function () { var sh = document.getElementById("setShade"); if (sh) sh.hidden = true; };
