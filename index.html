@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Buon — leader tape</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -55,7 +56,7 @@
           <label>Overlap to call it identical<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
           <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto-propose USDC on Solana, Base, BSC only</span></label>
           <p class="fine">Buys spend USDC cash. Phantom still signs.</p>
-          <label>Tape key (optional, for full books)<input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" /></label>
+          <label>Tape key (optional)<input type="password" id="tapeKey" placeholder="leave blank for public tape" autocomplete="off" /></label>
           <div class="wallet-box" id="walletBox">
             <div class="w-addr" id="walletAddr">Addresses show in cash bar above</div>
             <div class="bals" id="walletBals"></div>
@@ -78,7 +79,7 @@
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <footer class="foot">Cash is USDC. Copy full SOL and EVM addresses from the top bar.</footer>
   <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=3"></script>
   <script>
     (function () {
       const ATA = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -88,8 +89,12 @@
         const list = document.getElementById("addrList");
         if (!list) return;
         if (!state.wallet) { list.innerHTML = "<div class=\"meta\">Connect Phantom to load USDC cash</div>"; return; }
-        const row = (label, value) => value ? "<div class=\"addr-row\"><span class=\"meta\">" + label + "</span><code>" + value + "</code><button class=\"ghost\" data-copy=\"" + value + "\" type=\"button\">Copy</button></div>" : "";
+        const row = function (label, value) {
+          return value ? "<div class=\"addr-row\"><span class=\"meta\">" + label + "</span><code>" + value + "</code><button class=\"ghost\" data-copy=\"" + value + "\" type=\"button\">Copy</button></div>" : "";
+        };
         list.innerHTML = row("SOL", state.wallet) + row("EVM", state.evm);
+        const box = document.getElementById("walletAddr");
+        if (box) box.textContent = "Use Copy on the cash bar";
       }
       window.refreshBalance = async function () {
         if (!state.wallet || !window.solanaWeb3) return;
@@ -109,8 +114,8 @@
           let usdc = 0;
           try {
             const bal = await conn.getTokenAccountBalance(ata);
-            usdc = Number(bal && bal.value && bal.value.uiAmount || 0);
-          } catch (_) {
+            usdc = Number((bal && bal.value && bal.value.uiAmount) || 0);
+          } catch (e1) {
             const acc = await conn.getAccountInfo(ata);
             if (acc && acc.data) {
               const raw = acc.data instanceof Uint8Array ? acc.data : new Uint8Array(acc.data);
@@ -125,13 +130,27 @@
           if (gas) gas.textContent = "SOL gas " + sol.toFixed(4);
           if (box) box.innerHTML = "<div class=\"bal-row\"><span>cash</span><span class=\"amt\">" + usdc.toFixed(2) + " USDC</span></div><div class=\"bal-row\"><span>SOL gas</span><span class=\"amt\">" + sol.toFixed(4) + "</span></div>";
           document.getElementById("walletStatus").textContent = "cash " + usdc.toFixed(2) + " USDC";
+          if (!usdc) log("USDC on this Solana address is 0");
         } catch (err) {
           if (cash) cash.textContent = "USDC error";
           log(err.message || String(err));
         }
       };
+      if (typeof connectWallet === "function") {
+        const oldConnect = connectWallet;
+        window.connectWallet = async function () {
+          await oldConnect();
+          drawAddrs();
+          await refreshBalance();
+        };
+        document.getElementById("connectBtn").onclick = function () {
+          connectWallet().catch(function (e) { log(e.message); });
+        };
+      }
       const top = document.getElementById("refreshBalTop");
       if (top) top.onclick = function () { refreshBalance().catch(function (e) { log(e.message); }); };
+      const side = document.getElementById("refreshBal");
+      if (side) side.onclick = function () { refreshBalance().catch(function (e) { log(e.message); }); };
     })();
   </script>
 </body>
