@@ -17,6 +17,9 @@ const CHAIN = {
   solana: 792703809, sol: 792703809, robinhood: 4663, rh: 4663
 };
 
+var evmQueue = Promise.resolve();
+var evmNonce = {};
+
 function logLine(m) { if (typeof log === "function") log(m); }
 function destChain(chain, mint) {
   var c = String(chain || "").toLowerCase();
@@ -24,6 +27,7 @@ function destChain(chain, mint) {
   if (String(mint || "").indexOf("0x") === 0) return 4663;
   return 792703809;
 }
+function toNum(hex) { return Number(BigInt(hex || "0x0")); }
 async function rpc(chainId, method, params) {
   var urls = RPC[chainId] || RPC[8453];
   var last = "rpc";
@@ -49,18 +53,26 @@ function b64ToHex(b64) {
   for (var i = 0; i < raw.length; i++) hex += raw.charCodeAt(i).toString(16).padStart(2, "0");
   return hex;
 }
-async function signSend(chainId, to, data, value) {
+async function nextNonce(chainId) {
+  var pending = toNum(await rpc(chainId, "eth_getTransactionCount", [POOL, "pending"]));
+  var latest = toNum(await rpc(chainId, "eth_getTransactionCount", [POOL, "latest"]));
+  var local = evmNonce[chainId] || 0;
+  var n = Math.max(pending, latest, local);
+  evmNonce[chainId] = n + 1;
+  return n;
+}
+async function signSendOnce(chainId, to, data, value, nonce) {
   var tk = window.BUON_TK;
   if (!tk || !tk.client) throw new Error("Turnkey not ready");
-  var nonceHex = await rpc(chainId, "eth_getTransactionCount", [POOL, "pending"]);
-  var gasPrice = await rpc(chainId, "eth_gasPrice", []);
+  var gasPrice = BigInt(await rpc(chainId, "eth_gasPrice", []));
+  gasPrice = (gasPrice * 12n) / 10n;
   var tx = Transaction.from({
     to: to,
     data: data || "0x",
     value: value || 0,
-    gasLimit: 400000n,
-    gasPrice: BigInt(gasPrice),
-    nonce: Number(nonceHex),
+    gasLimit: 450000n,
+    gasPrice: gasPrice,
+    nonce: nonce,
     chainId: chainId,
     type: 0
   });
@@ -75,8 +87,27 @@ async function signSend(chainId, to, data, value) {
   if (!signed) throw new Error("no signed tx");
   if (signed.indexOf("0x") !== 0) signed = "0x" + signed;
   var hash = await rpc(chainId, "eth_sendRawTransaction", [signed]);
-  logLine("sent " + hash);
+  logLine("sent nonce " + nonce + " " + hash);
   return hash;
+}
+async function signSend(chainId, to, data, value) {
+  var run = evmQueue.then(async function () {
+    var nonce = await nextNonce(chainId);
+    try {
+      return await signSendOnce(chainId, to, data, value, nonce);
+    } catch (err) {
+      var msg = String(err.message || err);
+      if (/nonce too low|already known|replacement/i.test(msg)) {
+        evmNonce[chainId] = 0;
+        nonce = await nextNonce(chainId);
+        logLine("retry nonce " + nonce);
+        return await signSendOnce(chainId, to, data, value, nonce);
+      }
+      throw err;
+    }
+  });
+  evmQueue = run.catch(function () {});
+  return run;
 }
 async function signSendSol(unsignedHex) {
   var tk = window.BUON_TK;
@@ -178,9 +209,7 @@ async function sellSolana(pos) {
   var atoms = await solTokenAtoms(pos.mint);
   if (atoms === "0") throw new Error("No $" + (pos.symbol || "token") + " in the Solana pool");
   var lamports = await solLamports();
-  if (lamports < 500000) {
-    throw new Error("MARKET is in 8ZGuiQ… but that address has 0 SOL. Send 0.01 SOL there, then Take profit.");
-  }
+  if (lamports < 500000) throw new Error("Need SOL gas on 8ZGuiQ…");
   logLine("Jupiter sell $" + (pos.symbol || "") + " " + atoms);
   var quote = await fetch("https://lite-api.jup.ag/swap/v1/quote?inputMint=" + pos.mint + "&outputMint=" + USDC_SOL + "&amount=" + atoms + "&slippageBps=150").then(function (r) { return r.json(); });
   if (!quote || !quote.outAmount) throw new Error(quote.error || "no Jupiter route");
@@ -201,17 +230,7 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     if (!window.BUON_TK) throw new Error("Turnkey not ready");
     var toChain = destChain(chain, mint);
     if (!mint) throw new Error("no mint");
-    if (Number(toChain) === 792703809 && (await solLamports()) < 500000) {
-      throw new Error("No SOL gas on 8ZGuiQ… — will not buy another Solana token until 0.01 SOL is there");
-    }
-    if (Number(toChain) === 4663) {
-      var rh = BigInt(await rpc(4663, "eth_getBalance", [POOL, "latest"]) || "0x0");
-      if (rh === 0n) {
-        logLine("RH gas missing — topping up before buy");
-        var ready = await topUpRhGas();
-        if (!ready) throw new Error("RH gas hop sent. Wait 30s, then buy again.");
-      }
-    }
+    if (Number(toChain) === 792703809 && (await solLamports()) < 500000) throw new Error("No SOL gas — Solana buy blocked");
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var amount = String(Math.floor(size * 1e6));
     logLine("quoting $" + symbol + " Base USDC → " + toChain);
@@ -225,7 +244,6 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
       tradeType: "EXACT_INPUT",
       recipient: Number(toChain) === 792703809 ? POOL_SOL : POOL
     });
-    logLine(q.tool + " buy · " + q.txs.length + " step(s)");
     var lastHash = await runSteps(q, amount);
     if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
     if (typeof recordPosition === "function" && lastHash) recordPosition({ mint: mint, symbol: symbol, usdIn: size, chain: String(chain || ""), sig: lastHash });
@@ -242,9 +260,11 @@ window.deskSell = async function (pos) {
   if (String(pos.mint).indexOf("0x") !== 0) return sellSolana(pos);
   var fromChain = destChain(pos.chain, pos.mint);
   if (fromChain === 4663) {
-    var ready = await topUpRhGas();
     var rh = BigInt(await rpc(4663, "eth_getBalance", [POOL, "latest"]) || "0x0");
-    if (!ready || rh === 0n) throw new Error("RH gas hop sent. Wait 30s, then Take profit again.");
+    if (rh === 0n) {
+      await topUpRhGas();
+      throw new Error("RH gas hop sent. Wait 20s, flatten runs again.");
+    }
   }
   var atoms = await evmTokenAtoms(pos.mint, fromChain);
   if (atoms === 0n) throw new Error("No $" + (pos.symbol || "token") + " in the EVM pool");
