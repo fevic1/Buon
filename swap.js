@@ -1,4 +1,5 @@
 import { Transaction } from "https://cdn.jsdelivr.net/npm/ethers@6.13.5/+esm";
+import { Buffer } from "https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -24,6 +25,9 @@ const CHAIN = {
   "robinhood chain": 4663,
   monad: 143, hyperliquid: 1337, hyperevm: 999
 };
+
+if (!window.Buffer) window.Buffer = Buffer;
+if (!globalThis.Buffer) globalThis.Buffer = Buffer;
 
 function execPools() {
   var pool = window.BUON_POOL || {};
@@ -237,6 +241,7 @@ async function unifiedUsdcAtoms() {
 }
 async function relayQuote(body) {
   var res = await fetch("https://api.relay.link/quote/v2", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) res = await fetch("https://api.relay.link/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   var q = await res.json();
   if (q.message || q.error) throw new Error(q.message || q.error);
   var txs = [];
