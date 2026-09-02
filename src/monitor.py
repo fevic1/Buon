@@ -8,6 +8,7 @@ import websockets
 from loguru import logger
 
 from src.config import settings
+from src.snatch_bot import SnatchBot
 from src.ranker import OverlapEngine
 from src.tape import TapeClient, parse_holding
 
@@ -28,6 +29,7 @@ class BuonMonitor:
     def __init__(self) -> None:
         self.client = TapeClient()
         self.engine = OverlapEngine()
+        self.snatch = SnatchBot()
 
     def bootstrap(self) -> None:
         health = self.client.health()
@@ -36,6 +38,7 @@ class BuonMonitor:
         if not leaders:
             raise RuntimeError("Leaderboard returned no traders")
         self.engine.set_leaders(leaders)
+        self.snatch.set_leaders(leaders)
         logger.success(
             f"Tracking {len(self.engine.leaders)} leaders from {settings.leader_window} board"
         )
@@ -77,12 +80,25 @@ class BuonMonitor:
             return
         for alert in alerts:
             self.engine.ingest_alert(alert)
+            self._emit_snatch(self.snatch.on_alert(alert))
         logger.info(f"Seeded {len(alerts)} recent alerts")
 
     def _emit_books(self) -> None:
         _print_table("CROWDED / IDENTICAL COINS", self.engine.crowded())
         _print_table("POTENTIAL (early leader flow)", self.engine.potentials())
         _print_table("TOP RANKED ACTIONS", self.engine.ranked())
+        snap = self.snatch.snapshot()
+        logger.info(
+            "SNATCH snapshot positions={} tokens={} traders={} capital=${}",
+            len(snap.get("positions", [])),
+            snap.get("token_count", 0),
+            snap.get("tracked_traders", 0),
+            snap.get("capital_available", 0),
+        )
+        discard_counts = snap.get("discard_counts") or {}
+        if discard_counts:
+            top = sorted(discard_counts.items(), key=lambda kv: kv[1], reverse=True)[:5]
+            logger.info("SNATCH discard top={}", top)
 
     async def stream(self) -> None:
         url = self.client.websocket_url()
@@ -111,6 +127,7 @@ class BuonMonitor:
             return
         if alert.get("type") in {"welcome", "ping"}:
             return
+        self._emit_snatch(self.snatch.on_alert(alert))
         book = self.engine.ingest_alert(alert)
         if not book:
             return
@@ -134,12 +151,41 @@ class BuonMonitor:
         if ranked.get("market_url"):
             logger.info(f"Open (manual): {ranked['market_url']}")
 
+    def _emit_snatch(self, events: list[dict]) -> None:
+        for event in events:
+            if event.get("event") == "ENTRY_INTENT":
+                logger.success(
+                    "SNATCH ENTRY {} score={} notional=${} url={}",
+                    event.get("symbol"),
+                    event.get("opportunity_score"),
+                    event.get("notional_usd"),
+                    event.get("market_url") or "n/a",
+                )
+            elif event.get("event") == "EXIT_INTENT":
+                logger.info(
+                    "SNATCH EXIT {} reason={} pnl={} hold={}s",
+                    event.get("symbol"),
+                    event.get("reason"),
+                    event.get("pnl_pct"),
+                    event.get("hold_seconds"),
+                )
+            elif event.get("event") == "PARTIAL_EXIT_INTENT":
+                logger.info(
+                    "SNATCH PARTIAL {} reason={} qty={} rem={} pnl={}",
+                    event.get("symbol"),
+                    event.get("reason"),
+                    event.get("qty"),
+                    event.get("remaining_qty"),
+                    event.get("pnl_pct"),
+                )
+
     async def snapshot_loop(self) -> None:
         while True:
             await asyncio.sleep(settings.snapshot_every)
             try:
                 leaders = self.client.leaderboard()
                 self.engine.set_leaders(leaders)
+                self.snatch.set_leaders(leaders)
                 self._refresh_portfolios()
                 self._emit_books()
             except Exception as exc:
@@ -151,7 +197,7 @@ class BuonMonitor:
 
 
 def main() -> None:
-    logger.info("Buon overlap monitor — read-only. Does not place custodial trades.")
+    logger.info("Buon standalone SNATCH monitor. Emits low-latency entry/exit intents, no custodial execution.")
     monitor = BuonMonitor()
     try:
         asyncio.run(monitor.run())

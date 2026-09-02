@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 storage_state.json
 signals.json
+data/snatch_trades.jsonl

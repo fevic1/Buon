@@ -1,5 +1,7 @@
 (function () {
   const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+  const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  const SOL_RPC = "https://api.mainnet-beta.solana.com";
   const BASE_RPCS = [
     "https://base.publicnode.com",
     "https://mainnet.base.org",
@@ -41,20 +43,36 @@
     var raw = await evmRpc(BASE_RPCS, { jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: USDC_BASE, data: data }, "latest"] });
     return Number(BigInt(raw || "0x0")) / 1e6;
   }
-  function paintCash(base) {
-    state.cashUsdc = Number(base || 0);
+  async function solRpc(method, params) {
+    var res = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message || "sol rpc");
+    return data.result;
+  }
+  async function solUsdc(addr) {
+    if (!addr) return 0;
+    var res = await solRpc("getTokenAccountsByOwner", [addr, { mint: USDC_SOL }, { encoding: "jsonParsed" }]);
+    var rows = (res && res.value) || [];
+    if (!rows.length) return 0;
+    var info = (((rows[0].account || {}).data || {}).parsed || {}).info || {};
+    return Number((info.tokenAmount || {}).amount || "0") / 1e6;
+  }
+  function paintCash(solUsdcBal, baseUsdcBal) {
+    var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;
+    state.cashUsdc = Number(solUsdcBal || 0);
     localStorage.setItem(LAST, String(state.cashUsdc));
     var amt = document.getElementById("cashAmt");
-    if (amt) amt.textContent = Number(base || 0).toFixed(2) + " USDC";
+    if (amt) amt.textContent = Number(solUsdcBal || 0).toFixed(2) + " USDC";
     var st = document.getElementById("walletStatus");
-    if (st) st.textContent = "pool " + Number(base || 0).toFixed(2);
-    if (typeof notePoolBalance === "function") notePoolBalance(base);
+    if (st) st.textContent = "hub sol " + Number(solUsdcBal || 0).toFixed(2) + " · base reserve " + Number(baseUsdcBal || 0).toFixed(2);
+    if (typeof notePoolBalance === "function") notePoolBalance(solUsdcBal);
   }
   window.refreshBalance = window.deskRefresh = async function () {
     var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;
+    var sol = (window.BUON_POOL && window.BUON_POOL.sol) || "";
     try {
-      var base = await baseUsdc(pool);
-      paintCash(base);
+      var values = await Promise.all([solUsdc(sol), baseUsdc(pool)]);
+      paintCash(values[0], values[1]);
     } catch (err) {
       var st = document.getElementById("walletStatus");
       if (st) st.textContent = "cash rpc fail";

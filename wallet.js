@@ -19,7 +19,7 @@
     var st = document.getElementById("walletStatus");
     if (st) st.textContent = (state.wallet || state.evm) ? "privy on" : "wallet off";
     var wa = document.getElementById("walletAddr");
-    if (wa) wa.textContent = "EVM " + POOL_EVM + " · SOL " + POOL_SOL;
+    if (wa) wa.textContent = "Execution hub (Solana USDC): " + POOL_SOL + " | Base reserve: " + POOL_EVM;
   }
   function chainRows() {
     return CHAINS.map(function (c) {

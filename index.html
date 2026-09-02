@@ -54,6 +54,7 @@
       </section>
       <aside class="rail">
         <div class="card"><div class="card-h"><h2>Positions</h2></div><div id="posList" class="stack muted">No open positions</div></div>
+        <div class="card"><div class="card-h"><h2>Signal Queue</h2></div><div id="signalList" class="stack muted">No strategy intents yet</div></div>
         <div class="card"><div class="card-h"><h2>Potential</h2></div><div id="potentialList" class="stack muted">No early crowd yet</div></div>
         <div class="card"><div class="card-h"><h2>Activity</h2></div><div id="histList" class="stack muted">No cash events yet</div><div id="log" class="log muted"></div></div>
       </aside>
@@ -79,6 +80,9 @@
       <button class="primary slim" id="saveKeysBtn" type="button">Save</button>
       <label>Optional Helius<input id="rpcUrl" type="password" placeholder="leave blank" autocomplete="off" /></label>
       <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
+      <button class="ghost slim" id="routeCheckBtn" type="button">Check Execution Routes</button>
+      <div id="routeCheckMeta" class="fine muted">Checks ETH, RH, SOL, BNB, BASE, MONAD from Solana USDC hub.</div>
+      <div id="routeCheckList" class="stack muted">No route check run yet.</div>
       <div class="w-addr" id="walletAddr">not signed in</div>
     </aside>
   </div>

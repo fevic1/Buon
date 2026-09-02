@@ -9,8 +9,9 @@ const TAPE_WS = atob("d3NzOi8vYXBpLmZvbW9hcGkuaW8vd3MvYWxlcnRz");
 const DEX = "https://api.dexscreener.com/latest/dex/tokens/";
 const RELAY = "https://api.relay.link/quote";
 const RELAY_CHAIN = { solana: 792703809, sol: 792703809, ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56, monad: 143, robinhood: 4663, rh: 4663, hyperliquid: 1337, hyperevm: 999 };
+const SIGNAL_STREAM = "./data/snatch_trades.jsonl";
 
-const state = { leaders: new Map(), tokens: new Map(), traderTape: new Map(), wallet: null, evm: null, cashUsdc: 0, busy: false, seen: new Set(), solPrice: 0, key: localStorage.getItem("buon_key") || "" };
+const state = { leaders: new Map(), tokens: new Map(), traderTape: new Map(), wallet: null, evm: null, cashUsdc: 0, busy: false, seen: new Set(), signalSeen: new Set(), signalRows: [], solPrice: 0, key: localStorage.getItem("buon_key") || "" };
 const $ = (id) => document.getElementById(id);
 function log(msg) { const el = $("log"); const line = document.createElement("div"); line.textContent = `${new Date().toLocaleTimeString()} · ${msg}`; el.prepend(line); }
 function tokenKey(symbol, address) { if (address) return address.startsWith("0x") ? address.toLowerCase() : address; return (symbol || "?").replace(/^\$/, "").toUpperCase(); }
@@ -33,7 +34,74 @@ function renderFeed(alert, prepend = true) { const feed = $("feed"); const row =
 function renderLeaders() { $("leaders").innerHTML = [...state.leaders.values()].sort((a, b) => a.rank - b.rank).map((l) => `<article class="row clickable" data-trader="${l.handle}">${face(l.handle)}<div><div class="who">#${l.rank} @${l.handle} <span class="meta">${l.name && l.name !== l.handle ? l.name : ""}</span></div><div class="meta">PnL ${usd(l.pnl)} · vol ${usd(l.volume)} · ${l.trades} trades · ${Number(l.followers || 0).toLocaleString()} follows</div></div><div class="meta">${(l.wallets.solana || "").slice(0, 4)}…</div></article>`).join(""); }
 function tokenCard(r) { return `<div class="mini clickable" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}"><b>${coin(r.chain, r.address, r.symbol)}</b><span class="meta">${r.action} · overlap ${r.holders?.size || 0} · net ${usd((r.buyUsd || 0) - (r.sellUsd || 0))}</span></div>`; }
 function renderBooks() { const rows = ranked(30); const min = Number($("minOverlap").value || 3); const crowded = rows.filter((r) => (r.holders?.size || 0) >= min); const potential = rows.filter((r) => r.action === "POTENTIAL"); const list = (items, empty) => items.length ? items.slice(0, 8).map(tokenCard).join("") : `<div class="muted">${empty}</div>`; $("crowdedList").innerHTML = list(crowded, "No identical-coin cluster yet"); $("potentialList").innerHTML = list(potential, "No early leader flow yet"); $("book").innerHTML = rows.map((r) => `<article class="row clickable" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}"><img class="face" src="${coinSrc(r.chain, r.address)}" alt="" onerror="this.style.display='none'"><div><div class="who">${coin(r.chain, r.address, r.symbol)} <span class="tag ${r.action}">${r.action}</span></div><div class="meta">score ${r.score.toFixed(2)} · ${r.leaders.slice(0, 4).map((h) => "@" + h).join(" ")}</div></div><div>${buyBtn(r.address, r.symbol, r.chain)}</div></article>`).join("") || `<div class="muted">Waiting for overlapping flow…</div>`; }
+function signalId(row) { return [row.ts || "", row.event || "", row.chain || "", row.address || row.symbol || "", row.reason || ""].join("|"); }
+function renderSignalQueue() { const el = $("signalList"); if (!el) return; const rows = state.signalRows.slice(0, 16); if (!rows.length) { el.innerHTML = '<div class="muted">No strategy intents yet</div>'; return; } el.innerHTML = rows.map((r) => { const side = r.event === "ENTRY_INTENT" ? "buy" : "sell"; const reason = r.reason ? ` · ${r.reason}` : ""; const pnl = r.pnl_pct != null ? ` · pnl ${Number(r.pnl_pct).toFixed(2)}%` : ""; return `<div class="hold clickable" data-token="${r.symbol || ""}" data-address="${r.address || ""}" data-chain="${r.chain || ""}"><div><b>${coin(r.chain, r.address, r.symbol || "?")}</b><div class="meta"><span class="tag ${side}">${r.event}</span>${reason}${pnl}</div></div>${r.event === "ENTRY_INTENT" && r.address ? buyBtn(r.address, r.symbol, r.chain) : ""}</div>`; }).join(""); }
+async function pollSignalQueue() {
+  try {
+    const res = await fetch(`${SIGNAL_STREAM}?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const text = await res.text();
+    if (!text.trim()) return;
+    const lines = text.trim().split("\n");
+    for (const line of lines.slice(-120)) {
+      let row;
+      try { row = JSON.parse(line); } catch (_) { continue; }
+      if (!row || !row.event) continue;
+      const id = signalId(row);
+      if (state.signalSeen.has(id)) continue;
+      state.signalSeen.add(id);
+      state.signalRows.unshift(row);
+      if (state.signalRows.length > 60) state.signalRows.length = 60;
+      if (row.event === "ENTRY_INTENT" && $("autoBuy")?.checked && row.address) {
+        proposeBuy(row.address, row.symbol || "", true, row.chain || "solana");
+      }
+      if (row.event === "EXIT_INTENT") {
+        log(`Exit intent ${row.symbol || "?"} ${row.reason || ""}`.trim());
+      }
+    }
+    renderSignalQueue();
+  } catch (_) {}
+}
 function renderTicker(alerts) { const bits = (alerts || []).slice(0, 16).map((a) => `@${a.trader} ${(a.type || "tape").toUpperCase()} $${a.token || "?"} ${usd(a.usdValue)}`); if (bits.length) $("ticker").textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   "); }
+function renderRouteChecks(rows, err) {
+  const list = $("routeCheckList");
+  const meta = $("routeCheckMeta");
+  if (!list || !meta) return;
+  if (err) {
+    meta.textContent = `Route check failed: ${err}`;
+    list.innerHTML = '<div class="muted">Execution checker unavailable.</div>';
+    return;
+  }
+  if (!rows || !rows.length) {
+    meta.textContent = "No routes returned.";
+    list.innerHTML = '<div class="muted">No route data.</div>';
+    return;
+  }
+  const ok = rows.filter((r) => r.ok).length;
+  meta.textContent = `Route check ${ok}/${rows.length} ok · source: Solana USDC hub`;
+  list.innerHTML = rows.map((r) => {
+    const status = r.ok ? "OK" : "FAIL";
+    const tagClass = r.ok ? "buy" : "sell";
+    const chainId = r.chainId != null ? `#${r.chainId}` : "";
+    const detail = r.ok ? (r.mode || "route") : (r.error || "quote failed");
+    return `<div class="hold"><div><b>${String(r.chain || "?").toUpperCase()} ${chainId}</b><div class="meta">${detail}</div></div><span class="tag ${tagClass}">${status}</span></div>`;
+  }).join("");
+}
+async function runRouteChecks() {
+  const meta = $("routeCheckMeta");
+  const checker = window.checkExecutionRoutes;
+  if (!checker || typeof checker !== "function") {
+    renderRouteChecks([], "swap module not loaded yet");
+    return;
+  }
+  if (meta) meta.textContent = "Checking execution routes...";
+  try {
+    const rows = await checker();
+    renderRouteChecks(rows);
+  } catch (err) {
+    renderRouteChecks([], err.message || String(err));
+  }
+}
 function closeSheet() { $("shade").hidden = true; $("sheet").innerHTML = ""; }
 function openSheet(html) { $("sheet").innerHTML = html; $("shade").hidden = false; }
 async function openTrader(handle) {
@@ -95,9 +163,10 @@ function loadDesk() { try { const raw = JSON.parse(localStorage.getItem("buon_de
 document.addEventListener("click", (ev) => { const btn = ev.target.closest("button"); if (btn?.dataset.close != null) { closeSheet(); return; } if (btn?.dataset.sell) return; if (btn?.dataset.mint) { ev.stopPropagation(); proposeBuy(btn.dataset.mint, btn.dataset.symbol, false, btn.dataset.chain); return; } if (btn?.dataset.copy) { navigator.clipboard?.writeText(btn.dataset.copy); log("Copied"); return; } const hit = ev.target.closest("[data-trader], [data-token]"); if (!hit) return; if (hit.dataset.trader) openTrader(hit.dataset.trader); else openToken(hit.dataset.token, hit.dataset.address, hit.dataset.chain); });
 $("shade").addEventListener("click", (ev) => { if (ev.target.id === "shade") closeSheet(); });
 if ($("refreshBal")) $("refreshBal").onclick = () => refreshBalance().catch((e) => log(e.message));
+if ($("routeCheckBtn")) $("routeCheckBtn").onclick = () => runRouteChecks().catch((e) => log(e.message || String(e)));
 if ($("autoBuy")) $("autoBuy").onchange = () => { $("botStatus").textContent = $("autoBuy").checked ? "proposing on signals" : "bot idle"; saveDesk(); };
 ["sizeUsd", "minAlert", "minOverlap"].forEach((id) => { if ($(id)) $(id).onchange = saveDesk; });
 if ($("tapeKey")) $("tapeKey").onchange = () => { state.key = $("tapeKey").value.trim(); if (state.key) localStorage.setItem("buon_key", state.key); else localStorage.removeItem("buon_key"); };
 document.querySelectorAll(".tab").forEach((tab) => { tab.onclick = () => { document.querySelectorAll(".tab").forEach((t) => t.classList.remove("on")); document.querySelectorAll(".view").forEach((v) => v.classList.remove("on")); tab.classList.add("on"); $(`view-${tab.dataset.view}`).classList.add("on"); }; });
 setInterval(() => { if ($("clock")) $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
-(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlerts(true); connectWs(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlerts(false).catch(() => {}), 12_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { if ($("apiStatus")) $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
+(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlerts(true); await pollSignalQueue(); renderSignalQueue(); connectWs(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlerts(false).catch(() => {}), 12_000); setInterval(() => pollSignalQueue().catch(() => {}), 4_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { if ($("apiStatus")) $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
