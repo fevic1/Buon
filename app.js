@@ -22,7 +22,13 @@ function usd(n) { const v = Number(n || 0); if (!v) return ""; if (Math.abs(v) >
 function ago(ts) { if (!ts) return ""; const ms = ts > 1e12 ? ts : ts * 1000; const s = Math.max(0, Math.floor((Date.now() - ms) / 1000)); if (s < 60) return `${s}s`; if (s < 3600) return `${Math.floor(s / 60)}m`; return `${Math.floor(s / 3600)}h`; }
 function authHeaders() { return state.key ? { authorization: `Bearer ${state.key}` } : {}; }
 function face(handle) { const src = state.leaders.get(handle)?.avatar; const ini = initials(handle); if (src) return `<div class="face-wrap"><img class="face" src="${src}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="avatar" style="display:none">${ini}</div></div>`; return `<div class="avatar">${ini}</div>`; }
-function coin(chain, address, symbol) { const src = coinSrc(chain, address); const label = (symbol || "?").replace(/^\$/, ""); if (!src) return `$${label}`; return `<span class="sym"><img class="coin" src="${src}" alt="" onerror="this.style.display='none'">$${label}</span>`; }
+function coin(chain, address, symbol) {
+  const src = coinSrc(chain, address);
+  const label = (symbol || "?").replace(/^\$/, "");
+  const badge = label.slice(0, 2).toUpperCase();
+  if (!src) return `<span class="sym"><span class="coin-fallback">${badge}</span>$${label}</span>`;
+  return `<span class="sym"><img class="coin" src="${src}" alt="" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="coin-fallback">${badge}</span>$${label}</span>`;
+}
 function bookOf(symbol, address, chain) { const key = tokenKey(symbol, address); if (!state.tokens.has(key)) state.tokens.set(key, { key, symbol: (symbol || "?").replace(/^\$/, ""), address, chain, holders: new Set(), buyUsd: 0, sellUsd: 0, buys: 0, sells: 0, last: "" }); const book = state.tokens.get(key); if (address && !book.address) book.address = address; if (chain && !book.chain) book.chain = chain; if (symbol && book.symbol === "?") book.symbol = symbol.replace(/^\$/, ""); return book; }
 function findBook(symbol, address) { if (address && state.tokens.has(tokenKey(symbol, address))) return state.tokens.get(tokenKey(symbol, address)); const want = (symbol || "").replace(/^\$/, "").toUpperCase(); for (const book of state.tokens.values()) if (book.symbol.toUpperCase() === want) return book; return bookOf(symbol, address); }
 function score(book) { let rankW = 0; for (const handle of book.holders) { const leader = state.leaders.get(handle); if (leader) rankW += 1 / leader.rank; } return book.holders.size * 8 + rankW + Math.log1p(book.buyUsd) - 0.7 * Math.log1p(book.sellUsd); }

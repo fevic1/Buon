@@ -138,6 +138,17 @@ input, textarea {
 }
 .coin { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; background: #151b2e; vertical-align: middle; margin-right: 5px; }
 .sym { display: inline-flex; align-items: center; gap: 5px; }
+.coin-fallback {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--soft);
+  background: linear-gradient(135deg, #26314d, #1a233a);
+}
 .who { font-weight: 650; font-size: 13px; }
 .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; margin-left: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
