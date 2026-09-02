@@ -10,9 +10,7 @@
     { id: "robinhood", name: "Robinhood Chain", kind: "evm", send: "Sweeps to Base pool" },
     { id: "solana", name: "Solana", kind: "sol", send: "Sweeps to Base pool" }
   ];
-  function addrFor(kind) {
-    return kind === "sol" ? POOL_SOL : POOL_EVM;
-  }
+  function addrFor(kind) { return kind === "sol" ? POOL_SOL : POOL_EVM; }
   function draw() {
     var btn = document.getElementById("connectBtn");
     if (btn) btn.textContent = state.email || (state.wallet || state.evm ? "Account" : "Sign in");
@@ -21,23 +19,18 @@
     var st = document.getElementById("walletStatus");
     if (st) st.textContent = (state.wallet || state.evm) ? "privy on" : "wallet off";
     var wa = document.getElementById("walletAddr");
-    if (wa) wa.textContent = (state.wallet || state.evm) ? "signed in" : "not signed in";
+    if (wa) wa.textContent = "EVM " + POOL_EVM + " · SOL " + POOL_SOL;
   }
   function chainRows() {
     return CHAINS.map(function (c) {
       var a = addrFor(c.kind);
-      var short = a.slice(0, 6) + "…" + a.slice(-4);
-      return "<div class=\"hold\">" +
-        "<div><b>" + c.name + "</b><div class=\"meta\">" + c.send + "</div><div class=\"copy\">" + short + "</div></div>" +
-        "<button class=\"ghost\" data-copy=\"" + a + "\" type=\"button\">Copy</button>" +
-        "</div>";
+      return "<div class=\"hold\"><div><b>" + c.name + "</b><div class=\"meta\">" + c.send + "</div><div class=\"copy\">" + a + "</div></div><button class=\"ghost\" data-copy=\"" + a + "\" type=\"button\">Copy</button></div>";
     }).join("");
   }
   function netSelect(id) {
     return "<label>Network<select id=\"" + id + "\">" +
       CHAINS.map(function (c) {
-        var sel = c.id === "base" ? " selected" : "";
-        return "<option value=\"" + c.id + "\"" + sel + ">" + c.name + " USDC</option>";
+        return "<option value=\"" + c.id + "\"" + (c.id === "base" ? " selected" : "") + ">" + c.name + " USDC</option>";
       }).join("") +
       "</select></label>";
   }
@@ -47,31 +40,33 @@
       "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Cash</div><div class=\"meta\">Pool actions</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
       "<button class=\"ghost cash-action\" type=\"button\" id=\"menuDeposit\">Deposit</button>" +
       "<button class=\"ghost cash-action\" type=\"button\" id=\"menuWithdraw\">Withdraw</button>" +
+      "<button class=\"primary cash-action\" type=\"button\" id=\"menuReturn\">Return coins to USDC</button>" +
       "<button class=\"ghost cash-action\" type=\"button\" id=\"menuRefresh\">Refresh</button>"
     );
     var d = document.getElementById("menuDeposit");
     var w = document.getElementById("menuWithdraw");
+    var ret = document.getElementById("menuReturn");
     var r = document.getElementById("menuRefresh");
     if (d) d.onclick = function () { openDeposit(); };
     if (w) w.onclick = function () { openWithdraw(); };
-    if (r) r.onclick = function () { if (typeof refreshBalance === "function") refreshBalance(); };
+    if (ret) ret.onclick = function () { if (typeof closeAllHoldings === "function") closeAllHoldings(); };
+    if (r) r.onclick = function () { if (typeof recoverPositions === "function") recoverPositions(); if (typeof refreshBalance === "function") refreshBalance(); };
   };
   window.openDeposit = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
       "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Deposit</div><div class=\"meta\">Pick the network you send from</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
-      "<p class=\"fine\">USDC only. Base lands in the pool immediately. Other networks wait on a sweep.</p>" +
+      "<p class=\"fine\">USDC only. Base lands in the pool immediately.</p>" +
       chainRows()
     );
   };
   window.openWithdraw = function () {
     if (typeof openSheet !== "function") return;
     openSheet(
-      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">From the Base pool to the network you pick</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
+      "<div class=\"sheet-h\"><div class=\"grow\"><div class=\"who\">Withdraw</div><div class=\"meta\">From the Base pool</div></div><button class=\"ghost slim\" data-close type=\"button\">Close</button></div>" +
       netSelect("wdNet") +
       "<label>Destination<input id=\"wdDest\" placeholder=\"address on that network\" autocomplete=\"off\" /></label>" +
       "<label>Amount USDC<input id=\"wdAmt\" type=\"number\" min=\"1\" step=\"0.01\" value=\"10\" /></label>" +
-      "<p class=\"fine\">Base is a USDC transfer. Any other network is a hop out of the pool.</p>" +
       "<button class=\"primary slim\" type=\"button\" id=\"wdGo\">Request withdraw</button>"
     );
     var go = document.getElementById("wdGo");
