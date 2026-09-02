@@ -1,7 +1,10 @@
 (function () {
   const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
   const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-  const SOL_RPC = "https://api.mainnet-beta.solana.com";
+  const SOL_RPCS = [
+    "https://solana-rpc.publicnode.com",
+    "https://api.mainnet-beta.solana.com"
+  ];
   const BASE_RPCS = [
     "https://base.publicnode.com",
     "https://mainnet.base.org",
@@ -44,10 +47,17 @@
     return Number(BigInt(raw || "0x0")) / 1e6;
   }
   async function solRpc(method, params) {
-    var res = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
-    var data = await res.json();
-    if (data.error) throw new Error(data.error.message || "sol rpc");
-    return data.result;
+    var last = "sol rpc";
+    for (var i = 0; i < SOL_RPCS.length; i++) {
+      try {
+        var res = await fetch(SOL_RPCS[i], { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+        if (!res.ok) { last = "http " + res.status; continue; }
+        var data = await res.json();
+        if (data.error) { last = data.error.message || "sol rpc"; continue; }
+        return data.result;
+      } catch (e) { last = e.message || String(e); }
+    }
+    throw new Error(last);
   }
   async function solUsdc(addr) {
     if (!addr) return 0;
@@ -74,8 +84,14 @@
     var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;
     var sol = (window.BUON_POOL && window.BUON_POOL.sol) || "";
     try {
-      var values = await Promise.all([solUsdc(sol), baseUsdc(pool)]);
-      paintCash(values[0], values[1]);
+      var values = await Promise.allSettled([solUsdc(sol), baseUsdc(pool)]);
+      var solBal = values[0] && values[0].status === "fulfilled" ? values[0].value : 0;
+      var baseBal = values[1] && values[1].status === "fulfilled" ? values[1].value : 0;
+      paintCash(solBal, baseBal);
+      if (values[0].status !== "fulfilled" || values[1].status !== "fulfilled") {
+        var st = document.getElementById("walletStatus");
+        if (st) st.textContent = "cash partial · sol " + Number(solBal || 0).toFixed(2) + " · base " + Number(baseBal || 0).toFixed(2);
+      }
     } catch (err) {
       var st = document.getElementById("walletStatus");
       if (st) st.textContent = "cash rpc fail";
