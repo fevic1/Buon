@@ -7,8 +7,11 @@
   }
   function card(t) {
     var buy = typeof buyBtn === "function" ? buyBtn(t.mint, t.symbol, "solana") : "";
+    var head = typeof coin === "function"
+      ? coin("solana", t.mint, t.symbol)
+      : ("$" + t.symbol);
     return "<div class=\"mini clickable\" data-token=\"" + t.symbol + "\" data-address=\"" + t.mint + "\" data-chain=\"solana\">" +
-      "<b>$" + t.symbol + "</b><span class=\"meta\">" + (t.name || "Pump") + " · " + usd(t.mc) + "</span>" + buy + "</div>";
+      "<b>" + head + "</b><span class=\"meta\">" + (t.name || "Pump") + " · " + usd(t.mc) + "</span>" + buy + "</div>";
   }
   function draw(list, note) {
     var box = document.getElementById("gradList");
