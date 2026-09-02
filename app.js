@@ -138,7 +138,30 @@ async function openToken(symbol, address, chain) {
 async function loadLeaders() { const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`, { headers: authHeaders() }); const data = await res.json(); state.leaders.clear(); for (const row of data.traders || []) state.leaders.set(row.handle, { handle: row.handle, name: row.displayName, rank: row.rank, pnl: row.pnlUsd, volume: row.volumeUsd, trades: row.trades, followers: row.followers, avatar: row.avatar || "", wallets: row.wallets || {} }); renderLeaders(); $("apiStatus").textContent = `tape live · ${state.leaders.size} leaders`; }
 async function loadAlerts(seed) { const res = await fetch(`${API}/v2/alerts?limit=50`, { headers: authHeaders() }); const data = await res.json(); const alerts = data.alerts || []; renderTicker(alerts); let added = 0; const ordered = seed ? alerts.slice().reverse() : alerts; for (const a of ordered) { const before = state.seen.size; ingest(a, !seed); if (state.seen.size > before) { renderFeed(a, !seed); added += 1; } } $("feedMeta").textContent = seed ? `${alerts.length} live prints` : `${added} new · ${alerts.length} on tape`; }
 function ingest(alert, maybeTrade) { const id = alert.id || `${alert.ts}-${alert.trader}-${alert.token}`; if (state.seen.has(id)) return null; state.seen.add(id); rememberTrader(alert); const min = Number($("minAlert").value || 0); if (alert.usdValue && Number(alert.usdValue) < min && alert.type !== "thesis") return null; const book = bookOf(alert.token, alert.tokenAddress, alert.chain); const side = (alert.type || "").toLowerCase(); const usdValue = Number(alert.usdValue || 0); const tracked = state.leaders.has(alert.trader); if (side === "buy") { book.buys += 1; book.buyUsd += usdValue; if (tracked) book.holders.add(alert.trader); } else if (side === "sell") { book.sells += 1; book.sellUsd += usdValue; if (tracked) book.holders.delete(alert.trader); } renderBooks(); if (maybeTrade && $("autoBuy").checked && (actionOf(book) === "CROWDED_BID" || actionOf(book) === "POTENTIAL") && book.address) proposeBuy(book.address, book.symbol, true, book.chain); return book; }
-function connectWs() { const ws = new WebSocket(TAPE_WS); ws.onopen = () => { $("liveDot").classList.add("on"); log("Live tape connected"); }; ws.onmessage = (ev) => { try { const msg = JSON.parse(ev.data); if (msg.type === "welcome") return; const alert = msg.alert || msg; if (!alert || !alert.trader) return; const before = state.seen.size; ingest(alert, true); if (state.seen.size > before) renderFeed(alert, true); } catch (_) {} }; ws.onclose = () => { $("liveDot").classList.remove("on"); setTimeout(connectWs, 4000); }; }
+function connectWs() {
+  const ws = new WebSocket(TAPE_WS);
+  ws.onopen = () => {
+    const dot = $("liveDot");
+    if (dot) dot.classList.add("on");
+    log("Live tape connected");
+  };
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === "welcome") return;
+      const alert = msg.alert || msg;
+      if (!alert || !alert.trader) return;
+      const before = state.seen.size;
+      ingest(alert, true);
+      if (state.seen.size > before) renderFeed(alert, true);
+    } catch (_) {}
+  };
+  ws.onclose = () => {
+    const dot = $("liveDot");
+    if (dot) dot.classList.remove("on");
+    setTimeout(connectWs, 4000);
+  };
+}
 async function connection() {
   if (!window.solanaWeb3) throw new Error("web3 missing");
   var extra = (document.getElementById("rpcUrl") && document.getElementById("rpcUrl").value.trim()) || localStorage.getItem("buon_rpc") || "";
