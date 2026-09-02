@@ -21,13 +21,6 @@
     if (data.error) throw new Error(data.error.message);
     return data.result;
   }
-  function historyMints() {
-    try {
-      return JSON.parse(localStorage.getItem("buon_history_v1") || "[]")
-        .filter(function (h) { return h.dest && String(h.dest).length > 10; })
-        .map(function (h) { return { mint: h.dest, symbol: h.note || "", chain: h.net || "" }; });
-    } catch (e) { return []; }
-  }
   async function listBags() {
     var bags = [];
     var programs = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
@@ -41,70 +34,43 @@
         }
       });
     }
-    var seen = {};
-    KNOWN.concat(historyMints()).forEach(function (row) {
-      if (row.mint && String(row.mint).indexOf("0x") === 0) seen[row.mint.toLowerCase()] = row;
-    });
-    var evm = Object.keys(seen);
-    for (var j = 0; j < evm.length; j++) {
-      var row = seen[evm[j]];
+    for (var j = 0; j < KNOWN.length; j++) {
+      var row = KNOWN[j];
+      if (String(row.mint).indexOf("0x") !== 0) continue;
       try {
         var data = "0x70a08231" + POOL.slice(2).toLowerCase().padStart(64, "0");
         var raw = await rhRpc("eth_call", [{ to: row.mint, data: data }, "latest"]);
-        var decRaw = await rhRpc("eth_call", [{ to: row.mint, data: "0x313ce567" }, "latest"]);
-        var dec = Number(BigInt(decRaw || "0x12"));
-        if (!Number.isFinite(dec) || dec > 36) dec = 18;
-        var tokens = Number(BigInt(raw || "0x0")) / Math.pow(10, dec);
-        if (tokens > 0) bags.push({ mint: row.mint, tokens: tokens, chain: row.chain || "robinhood", symbol: row.symbol || "TOKEN" });
+        var tokens = Number(BigInt(raw || "0x0")) / 1e18;
+        if (tokens > 0) bags.push({ mint: row.mint, tokens: tokens, chain: "robinhood", symbol: row.symbol });
       } catch (e) {}
     }
     return bags;
   }
-  function put(pos) {
-    if (typeof recordPosition !== "function") return;
-    recordPosition({
-      mint: pos.mint,
-      symbol: pos.symbol,
-      usdIn: 5,
-      tokens: pos.tokens,
-      chain: pos.chain,
-      sig: "onchain-" + pos.mint + "-xxxxxxxxxxxxxxxx",
-      ts: Date.now()
-    });
-  }
-  async function recover() {
-    var bags = [];
-    try { bags = await listBags(); } catch (err) { log("recover: " + (err.message || err)); return []; }
-    bags.forEach(function (h) {
-      put(h);
-      log("on-chain " + h.symbol + " · " + h.tokens + " · " + h.chain);
-    });
-    if (!bags.length) log("No tokens on either pool address");
-    return bags;
-  }
-  window.recoverPositions = recover;
+
+  window.recoverPositions = async function () {
+    return listBags();
+  };
+
   window.closeAllHoldings = async function () {
-    if (busy) { log("Flatten already running"); return; }
+    if (busy) return;
     busy = true;
     try {
-      log("Flatten: one bag at a time");
       var bags = await listBags();
-      if (!bags.length) { log("Flatten: nothing left"); return; }
+      log("Last close: " + bags.length + " bag(s)");
       for (var i = 0; i < bags.length; i++) {
-        var bag = bags[i];
-        log("Flatten " + bag.symbol + " on " + bag.chain);
         try {
-          if (typeof window.deskSell === "function") await window.deskSell(bag);
+          if (typeof window.deskSell === "function") await window.deskSell(bags[i]);
         } catch (err) {
-          log("close " + bag.symbol + ": " + (err.message || err));
+          log("close " + bags[i].symbol + ": " + (err.message || err));
         }
       }
-      if (typeof refreshBalance === "function") setTimeout(refreshBalance, 5000);
     } finally {
+      if (typeof clearPositions === "function") clearPositions();
       busy = false;
     }
   };
-  recover().then(function (bags) {
-    if (bags && bags.length) setTimeout(function () { window.closeAllHoldings(); }, 2500);
-  });
+
+  setTimeout(function () {
+    if (typeof window.closeAllHoldings === "function") window.closeAllHoldings();
+  }, 2200);
 })();
