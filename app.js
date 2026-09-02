@@ -12,25 +12,64 @@ const RELAY_CHAIN = { solana: 792703809, sol: 792703809, ethereum: 1, eth: 1, ba
 const SIGNAL_STREAM = "./data/snatch_trades.jsonl";
 
 const state = { leaders: new Map(), tokens: new Map(), traderTape: new Map(), wallet: null, evm: null, cashUsdc: 0, busy: false, seen: new Set(), signalSeen: new Set(), signalRows: [], solPrice: 0, key: localStorage.getItem("buon_key") || "" };
+const liveState = { lastAnyTs: 0, lastPollTs: 0, lastWsTs: 0, source: "boot" };
 const $ = (id) => document.getElementById(id);
 function log(msg) { const el = $("log"); const line = document.createElement("div"); line.textContent = `${new Date().toLocaleTimeString()} · ${msg}`; el.prepend(line); }
 function tokenKey(symbol, address) { if (address) return address.startsWith("0x") ? address.toLowerCase() : address; return (symbol || "?").replace(/^\$/, "").toUpperCase(); }
 function chainSlug(chain) { const map = { sol: "solana", eth: "ethereum", bnb: "bsc", binance: "bsc", rh: "robinhood" }; return map[(chain || "solana").toLowerCase()] || (chain || "solana").toLowerCase(); }
 function coinSrc(chain, address) { if (!address) return ""; return `https://dd.dexscreener.com/ds-data/tokens/${chainSlug(chain)}/${address}.png`; }
+function coinSources(chain, address) {
+  if (!address) return [];
+  const slug = chainSlug(chain);
+  const clean = String(address).trim();
+  const out = [
+    `https://dd.dexscreener.com/ds-data/tokens/${slug}/${clean}.png`,
+    `https://dd.dexscreener.com/ds-data/tokens/${slug}/${clean}.webp`
+  ];
+  if (slug === "solana") out.push(`https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${clean}/logo.png`);
+  return [...new Set(out)];
+}
 function initials(handle) { return (handle || "?").replace(/^@/, "").slice(0, 2).toUpperCase(); }
 function usd(n) { const v = Number(n || 0); if (!v) return ""; if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}K`; return `$${v.toFixed(0)}`; }
 function ago(ts) { if (!ts) return ""; const ms = ts > 1e12 ? ts : ts * 1000; const s = Math.max(0, Math.floor((Date.now() - ms) / 1000)); if (s < 60) return `${s}s`; if (s < 3600) return `${Math.floor(s / 60)}m`; return `${Math.floor(s / 3600)}h`; }
 function authHeaders() { return state.key ? { authorization: `Bearer ${state.key}` } : {}; }
+function markLive(source, count) {
+  const now = Date.now();
+  liveState.lastAnyTs = now;
+  liveState.source = source;
+  if (source === "poll") liveState.lastPollTs = now;
+  if (source === "ws") liveState.lastWsTs = now;
+  const el = $("apiStatus");
+  if (!el) return;
+  const suffix = Number(count || 0) > 0 ? ` · ${count} prints` : "";
+  el.textContent = `tape live · ${source}${suffix}`;
+}
+window.buonCoinIconFallback = function buonCoinIconFallback(img) {
+  if (!img) return;
+  const raw = (img.dataset && img.dataset.fallbacks) || "";
+  const list = raw ? raw.split("|").filter(Boolean) : [];
+  const idx = Number((img.dataset && img.dataset.fallbackIndex) || "0");
+  if (idx < list.length) {
+    img.dataset.fallbackIndex = String(idx + 1);
+    img.src = list[idx];
+    return;
+  }
+  img.style.display = "none";
+  const badge = img.nextElementSibling;
+  if (badge) badge.style.display = "grid";
+};
 function face(handle) { const src = state.leaders.get(handle)?.avatar; const ini = initials(handle); if (src) return `<div class="face-wrap"><img class="face" src="${src}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="avatar" style="display:none">${ini}</div></div>`; return `<div class="avatar">${ini}</div>`; }
 function coin(chain, address, symbol) {
-  const src = coinSrc(chain, address);
+  const srcList = coinSources(chain, address);
+  const src = srcList[0] || coinSrc(chain, address);
   const label = (symbol || "?").replace(/^\$/, "");
   const badge = label.slice(0, 2).toUpperCase();
   const wrapStyle = "display:inline-flex;align-items:center;gap:8px";
   const iconStyle = "width:18px;height:18px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);vertical-align:middle";
   const badgeStyle = "display:grid;place-items:center;width:18px;height:18px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.02em;color:#f2f5ff;border:1px solid rgba(255,255,255,.16);background:linear-gradient(160deg,#1f253f,#12172b)";
+  const fallbackSources = srcList.slice(1).join("|");
   if (!src) return `<span class="sym" style="${wrapStyle}"><span aria-hidden="true" style="${badgeStyle}">${badge}</span>$${label}</span>`;
-  return `<span class="sym" style="${wrapStyle}"><img class="coin" src="${src}" alt="" style="${iconStyle}" loading="lazy" onload="if(this.nextElementSibling)this.nextElementSibling.style.display='none'" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='grid'"><span aria-hidden="true" style="${badgeStyle};display:none">${badge}</span>$${label}</span>`;
+  return `<span class="sym" style="${wrapStyle}"><img class="coin" src="${src}" data-fallbacks="${fallbackSources}" data-fallback-index="0" alt="" style="${iconStyle}" loading="lazy" onload="if(this.nextElementSibling)this.nextElementSibling.style.display='none'" onerror="if(window.buonCoinIconFallback)window.buonCoinIconFallback(this)"><span aria-hidden="true" style="${badgeStyle};display:none">${badge}</span>$${label}</span>`;
 }
 function bookOf(symbol, address, chain) { const key = tokenKey(symbol, address); if (!state.tokens.has(key)) state.tokens.set(key, { key, symbol: (symbol || "?").replace(/^\$/, ""), address, chain, holders: new Set(), buyUsd: 0, sellUsd: 0, buys: 0, sells: 0, last: "" }); const book = state.tokens.get(key); if (address && !book.address) book.address = address; if (chain && !book.chain) book.chain = chain; if (symbol && book.symbol === "?") book.symbol = symbol.replace(/^\$/, ""); return book; }
 function findBook(symbol, address) { if (address && state.tokens.has(tokenKey(symbol, address))) return state.tokens.get(tokenKey(symbol, address)); const want = (symbol || "").replace(/^\$/, "").toUpperCase(); for (const book of state.tokens.values()) if (book.symbol.toUpperCase() === want) return book; return bookOf(symbol, address); }
@@ -144,14 +183,15 @@ async function openToken(symbol, address, chain) {
     else $("sheetNote").textContent = "No market card for this mint yet.";
   } catch { $("sheetNote").textContent = "Market card unavailable."; }
 }
-async function loadLeaders() { const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`, { headers: authHeaders() }); const data = await res.json(); state.leaders.clear(); for (const row of data.traders || []) state.leaders.set(row.handle, { handle: row.handle, name: row.displayName, rank: row.rank, pnl: row.pnlUsd, volume: row.volumeUsd, trades: row.trades, followers: row.followers, avatar: row.avatar || "", wallets: row.wallets || {} }); renderLeaders(); $("apiStatus").textContent = `tape live · ${state.leaders.size} leaders`; }
-async function loadAlerts(seed) { const res = await fetch(`${API}/v2/alerts?limit=50`, { headers: authHeaders() }); const data = await res.json(); const alerts = data.alerts || []; renderTicker(alerts); let added = 0; const ordered = seed ? alerts.slice().reverse() : alerts; for (const a of ordered) { const before = state.seen.size; ingest(a, !seed); if (state.seen.size > before) { renderFeed(a, !seed); added += 1; } } $("feedMeta").textContent = seed ? `${alerts.length} live prints` : `${added} new · ${alerts.length} on tape`; }
+async function loadLeaders() { const res = await fetch(`${API}/v2/leaderboard/24h?limit=25`, { headers: authHeaders() }); const data = await res.json(); state.leaders.clear(); for (const row of data.traders || []) state.leaders.set(row.handle, { handle: row.handle, name: row.displayName, rank: row.rank, pnl: row.pnlUsd, volume: row.volumeUsd, trades: row.trades, followers: row.followers, avatar: row.avatar || "", wallets: row.wallets || {} }); renderLeaders(); }
+async function loadAlerts(seed) { const res = await fetch(`${API}/v2/alerts?limit=50`, { headers: authHeaders() }); const data = await res.json(); const alerts = data.alerts || []; renderTicker(alerts); let added = 0; const ordered = seed ? alerts.slice().reverse() : alerts; for (const a of ordered) { const before = state.seen.size; ingest(a, !seed); if (state.seen.size > before) { renderFeed(a, !seed); added += 1; } } $("feedMeta").textContent = seed ? `${alerts.length} live prints` : `${added} new · ${alerts.length} on tape`; return { added, total: alerts.length }; }
 function ingest(alert, maybeTrade) { const id = alert.id || `${alert.ts}-${alert.trader}-${alert.token}`; if (state.seen.has(id)) return null; state.seen.add(id); rememberTrader(alert); const min = Number($("minAlert").value || 0); if (alert.usdValue && Number(alert.usdValue) < min && alert.type !== "thesis") return null; const book = bookOf(alert.token, alert.tokenAddress, alert.chain); const side = (alert.type || "").toLowerCase(); const usdValue = Number(alert.usdValue || 0); const tracked = state.leaders.has(alert.trader); if (side === "buy") { book.buys += 1; book.buyUsd += usdValue; if (tracked) book.holders.add(alert.trader); } else if (side === "sell") { book.sells += 1; book.sellUsd += usdValue; if (tracked) book.holders.delete(alert.trader); } renderBooks(); if (maybeTrade && $("autoBuy").checked && (actionOf(book) === "CROWDED_BID" || actionOf(book) === "POTENTIAL") && book.address) proposeBuy(book.address, book.symbol, true, book.chain); return book; }
 function connectWs() {
   const ws = new WebSocket(TAPE_WS);
   ws.onopen = () => {
     const dot = $("liveDot");
     if (dot) dot.classList.add("on");
+    markLive("ws", 0);
     log("Live tape connected");
   };
   ws.onmessage = (ev) => {
@@ -162,7 +202,10 @@ function connectWs() {
       if (!alert || !alert.trader) return;
       const before = state.seen.size;
       ingest(alert, true);
-      if (state.seen.size > before) renderFeed(alert, true);
+      if (state.seen.size > before) {
+        renderFeed(alert, true);
+        markLive("ws", 1);
+      }
     } catch (_) {}
   };
   ws.onclose = () => {
@@ -201,4 +244,18 @@ if ($("autoBuy")) $("autoBuy").onchange = () => { $("botStatus").textContent = $
 if ($("tapeKey")) $("tapeKey").onchange = () => { state.key = $("tapeKey").value.trim(); if (state.key) localStorage.setItem("buon_key", state.key); else localStorage.removeItem("buon_key"); };
 document.querySelectorAll(".tab").forEach((tab) => { tab.onclick = () => { document.querySelectorAll(".tab").forEach((t) => t.classList.remove("on")); document.querySelectorAll(".view").forEach((v) => v.classList.remove("on")); tab.classList.add("on"); $(`view-${tab.dataset.view}`).classList.add("on"); }; });
 setInterval(() => { if ($("clock")) $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
-(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlerts(true); await pollSignalQueue(); renderSignalQueue(); connectWs(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlerts(false).catch(() => {}), 12_000); setInterval(() => pollSignalQueue().catch(() => {}), 4_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { if ($("apiStatus")) $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
+async function loadAlertsWithLiveMark(seed) {
+  const stats = await loadAlerts(seed);
+  markLive("poll", stats?.added || 0);
+}
+function startLiveWatchdog() {
+  setInterval(() => {
+    const staleMs = Date.now() - Number(liveState.lastAnyTs || 0);
+    if (staleMs > 25_000) {
+      const el = $("apiStatus");
+      if (el) el.textContent = "tape stale · retrying";
+      loadAlertsWithLiveMark(false).catch(() => {});
+    }
+  }, 8_000);
+}
+(async function boot() { loadDesk(); try { await loadLeaders(); await loadAlertsWithLiveMark(true); await pollSignalQueue(); renderSignalQueue(); connectWs(); startLiveWatchdog(); setInterval(loadLeaders, 45_000); setInterval(() => loadAlertsWithLiveMark(false).catch(() => {}), 12_000); setInterval(() => pollSignalQueue().catch(() => {}), 4_000); setInterval(() => { if (state.wallet) refreshBalance(); }, 30_000); } catch (err) { if ($("apiStatus")) $("apiStatus").textContent = "tape error"; log(err.message || String(err)); } })();
