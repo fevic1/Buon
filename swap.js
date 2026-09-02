@@ -2,6 +2,7 @@ import { Transaction } from "https://cdn.jsdelivr.net/npm/ethers@6.13.5/+esm";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const ZERO = "0x0000000000000000000000000000000000000000";
 const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
 const POOL_SOL = "8ZGuiQZzb6BMDeWjzPzowr6B839ftaJS15ihoscfqEk4";
 const SOL_RPC = "https://api.mainnet-beta.solana.com";
@@ -12,11 +13,8 @@ const RPC = {
   4663: ["https://rpc.mainnet.chain.robinhood.com"]
 };
 const CHAIN = {
-  ethereum: 1, eth: 1,
-  base: 8453,
-  bsc: 56, bnb: 56, binance: 56,
-  solana: 792703809, sol: 792703809,
-  robinhood: 4663, rh: 4663
+  ethereum: 1, eth: 1, base: 8453, bsc: 56, bnb: 56, binance: 56,
+  solana: 792703809, sol: 792703809, robinhood: 4663, rh: 4663
 };
 
 function logLine(m) { if (typeof log === "function") log(m); }
@@ -56,9 +54,23 @@ async function signSend(chainId, to, data, value) {
   if (!tk || !tk.client) throw new Error("Turnkey not ready");
   var nonceHex = await rpc(chainId, "eth_getTransactionCount", [POOL, "pending"]);
   var gasPrice = await rpc(chainId, "eth_gasPrice", []);
-  var tx = Transaction.from({ to: to, data: data || "0x", value: value || 0, gasLimit: 400000n, gasPrice: BigInt(gasPrice), nonce: Number(nonceHex), chainId: chainId, type: 0 });
+  var tx = Transaction.from({
+    to: to,
+    data: data || "0x",
+    value: value || 0,
+    gasLimit: 400000n,
+    gasPrice: BigInt(gasPrice),
+    nonce: Number(nonceHex),
+    chainId: chainId,
+    type: 0
+  });
   var raw = tx.unsignedSerialized.replace(/^0x/, "");
-  var act = await tk.client.signTransaction({ type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2", timestampMs: String(Date.now()), organizationId: tk.org, parameters: { signWith: POOL, unsignedTransaction: raw, type: "TRANSACTION_TYPE_ETHEREUM" } });
+  var act = await tk.client.signTransaction({
+    type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2",
+    timestampMs: String(Date.now()),
+    organizationId: tk.org,
+    parameters: { signWith: POOL, unsignedTransaction: raw, type: "TRANSACTION_TYPE_ETHEREUM" }
+  });
   var signed = (act && act.activity && act.activity.result && act.activity.result.signTransactionResult && act.activity.result.signTransactionResult.signedTransaction) || (act && act.signedTransaction);
   if (!signed) throw new Error("no signed tx");
   if (signed.indexOf("0x") !== 0) signed = "0x" + signed;
@@ -69,7 +81,12 @@ async function signSend(chainId, to, data, value) {
 async function signSendSol(unsignedHex) {
   var tk = window.BUON_TK;
   if (!tk || !tk.client) throw new Error("Turnkey not ready");
-  var act = await tk.client.signTransaction({ type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2", timestampMs: String(Date.now()), organizationId: tk.org, parameters: { signWith: POOL_SOL, unsignedTransaction: unsignedHex.replace(/^0x/, ""), type: "TRANSACTION_TYPE_SOLANA" } });
+  var act = await tk.client.signTransaction({
+    type: "ACTIVITY_TYPE_SIGN_TRANSACTION_V2",
+    timestampMs: String(Date.now()),
+    organizationId: tk.org,
+    parameters: { signWith: POOL_SOL, unsignedTransaction: unsignedHex.replace(/^0x/, ""), type: "TRANSACTION_TYPE_SOLANA" }
+  });
   var signed = (act && act.activity && act.activity.result && act.activity.result.signTransactionResult && act.activity.result.signTransactionResult.signedTransaction) || (act && act.signedTransaction);
   if (!signed) throw new Error("no signed sol tx");
   var bytes = signed.replace(/^0x/, "");
@@ -97,7 +114,7 @@ async function relayQuote(body) {
   var txs = [];
   (q.steps || []).forEach(function (s) {
     (s.items || []).forEach(function (it) {
-      if (it.data && it.data.to && it.data.data) txs.push(it.data);
+      if (it.data && it.data.to) txs.push(it.data);
     });
   });
   if (!txs.length) throw new Error("Relay returned no tx");
@@ -108,59 +125,62 @@ async function runSteps(q, amountHint) {
   for (var i = 0; i < q.txs.length; i++) {
     var tx = q.txs[i];
     var chainId = Number(tx.chainId || 8453);
-    if (String(tx.data || "").indexOf("0x095ea7b3") === 0) {
+    if (tx.data && String(tx.data).indexOf("0x095ea7b3") === 0) {
       var spender = "0x" + String(tx.data).slice(34, 74);
       var have = await allowance(tx.to, spender, chainId);
       if (amountHint && have >= BigInt(amountHint)) { logLine("allowance ok"); continue; }
     }
-    lastHash = await signSend(chainId, tx.to, tx.data, tx.value || 0);
+    lastHash = await signSend(chainId, tx.to, tx.data || "0x", tx.value || 0);
   }
   return lastHash;
 }
-async function topUpSol() {
-  var bal = await solRpc("getBalance", [POOL_SOL]);
-  var lamports = Number((bal && bal.value) || bal || 0);
-  if (lamports >= 400000) { logLine("SOL gas ok " + lamports); return; }
-  logLine("Solana pool has 0 gas — sending 0.40 USDC Base → SOL");
+async function topUpRhGas() {
+  var raw = await rpc(4663, "eth_getBalance", [POOL, "latest"]);
+  if (BigInt(raw || "0x0") > 0n) { logLine("RH gas ok"); return true; }
+  logLine("Robinhood gas is 0 — hopping 0.0002 ETH from Base");
   var q = await relayQuote({
     user: POOL,
     originChainId: 8453,
-    originCurrency: USDC,
-    destinationChainId: 792703809,
-    destinationCurrency: "11111111111111111111111111111111",
-    amount: "400000",
+    originCurrency: ZERO,
+    destinationChainId: 4663,
+    destinationCurrency: ZERO,
+    amount: "200000000000000",
     tradeType: "EXACT_INPUT",
-    recipient: POOL_SOL
+    recipient: POOL
   });
-  await runSteps(q, "400000");
-  logLine("SOL top-up submitted — wait for it to land then tap Take profit again");
+  await runSteps(q);
+  logLine("RH gas hop submitted");
+  return false;
+}
+async function solLamports() {
+  var bal = await solRpc("getBalance", [POOL_SOL]);
+  return Number((bal && bal.value) || bal || 0);
 }
 async function solTokenAtoms(mint) {
-  var programs = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
-  for (var i = 0; i < programs.length; i++) {
-    var res = await solRpc("getTokenAccountsByOwner", [POOL_SOL, { mint: mint }, { encoding: "jsonParsed" }]);
-    var rows = (res && res.value) || [];
-    if (!rows.length) {
+  var res = await solRpc("getTokenAccountsByOwner", [POOL_SOL, { mint: mint }, { encoding: "jsonParsed" }]);
+  var rows = (res && res.value) || [];
+  if (!rows.length) {
+    var programs = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
+    for (var i = 0; i < programs.length; i++) {
       res = await solRpc("getTokenAccountsByOwner", [POOL_SOL, { programId: programs[i] }, { encoding: "jsonParsed" }]);
       rows = ((res && res.value) || []).filter(function (row) {
         var info = (((row.account || {}).data || {}).parsed || {}).info || {};
         return info.mint === mint;
       });
-    }
-    if (rows.length) {
-      var info = (((rows[0].account || {}).data || {}).parsed || {}).info || {};
-      return String((info.tokenAmount || {}).amount || "0");
+      if (rows.length) break;
     }
   }
-  return "0";
+  if (!rows.length) return "0";
+  var info = (((rows[0].account || {}).data || {}).parsed || {}).info || {};
+  return String((info.tokenAmount || {}).amount || "0");
 }
 async function sellSolana(pos) {
   var atoms = await solTokenAtoms(pos.mint);
   if (atoms === "0") throw new Error("No $" + (pos.symbol || "token") + " in the Solana pool");
-  await topUpSol();
-  var bal = await solRpc("getBalance", [POOL_SOL]);
-  var lamports = Number((bal && bal.value) || bal || 0);
-  if (lamports < 400000) throw new Error("Waiting on SOL gas. Tap Take profit again in ~30s.");
+  var lamports = await solLamports();
+  if (lamports < 500000) {
+    throw new Error("MARKET is in 8ZGuiQ… but that address has 0 SOL. Send 0.01 SOL there, then Take profit.");
+  }
   logLine("Jupiter sell $" + (pos.symbol || "") + " " + atoms);
   var quote = await fetch("https://lite-api.jup.ag/swap/v1/quote?inputMint=" + pos.mint + "&outputMint=" + USDC_SOL + "&amount=" + atoms + "&slippageBps=150").then(function (r) { return r.json(); });
   if (!quote || !quote.outAmount) throw new Error(quote.error || "no Jupiter route");
@@ -179,10 +199,21 @@ async function sellSolana(pos) {
 window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain) {
   try {
     if (!window.BUON_TK) throw new Error("Turnkey not ready");
-    var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
-    var amount = String(Math.floor(size * 1e6));
     var toChain = destChain(chain, mint);
     if (!mint) throw new Error("no mint");
+    if (Number(toChain) === 792703809 && (await solLamports()) < 500000) {
+      throw new Error("No SOL gas on 8ZGuiQ… — will not buy another Solana token until 0.01 SOL is there");
+    }
+    if (Number(toChain) === 4663) {
+      var rh = BigInt(await rpc(4663, "eth_getBalance", [POOL, "latest"]) || "0x0");
+      if (rh === 0n) {
+        logLine("RH gas missing — topping up before buy");
+        var ready = await topUpRhGas();
+        if (!ready) throw new Error("RH gas hop sent. Wait 30s, then buy again.");
+      }
+    }
+    var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
+    var amount = String(Math.floor(size * 1e6));
     logLine("quoting $" + symbol + " Base USDC → " + toChain);
     var q = await relayQuote({
       user: POOL,
@@ -210,6 +241,11 @@ window.deskSell = async function (pos) {
   if (!window.BUON_TK) throw new Error("Turnkey not ready");
   if (String(pos.mint).indexOf("0x") !== 0) return sellSolana(pos);
   var fromChain = destChain(pos.chain, pos.mint);
+  if (fromChain === 4663) {
+    var ready = await topUpRhGas();
+    var rh = BigInt(await rpc(4663, "eth_getBalance", [POOL, "latest"]) || "0x0");
+    if (!ready || rh === 0n) throw new Error("RH gas hop sent. Wait 30s, then Take profit again.");
+  }
   var atoms = await evmTokenAtoms(pos.mint, fromChain);
   if (atoms === 0n) throw new Error("No $" + (pos.symbol || "token") + " in the EVM pool");
   logLine("selling $" + (pos.symbol || "") + " → Base USDC");
