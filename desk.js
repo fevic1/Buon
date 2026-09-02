@@ -14,7 +14,7 @@
   const POOL = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
   const LAST = "buon_pool_last";
   function loadCreds() {
-    ["sizeUsd", "minAlert", "minOverlap", "tpPct"].forEach(function (id) {
+    ["sizeUsd", "keepUsd", "minAlert", "minOverlap", "tpPct"].forEach(function (id) {
       var el = document.getElementById(id);
       var v = localStorage.getItem("buon_" + id);
       if (el && v) el.value = v;
@@ -91,6 +91,11 @@
       if (values[0].status !== "fulfilled" || values[1].status !== "fulfilled") {
         var st = document.getElementById("walletStatus");
         if (st) st.textContent = "cash partial · sol " + Number(solBal || 0).toFixed(2) + " · base " + Number(baseBal || 0).toFixed(2);
+      }
+      if (typeof window.primeExecutionHub === "function") {
+        window.primeExecutionHub({ wait: false }).catch(function (err) {
+          if (typeof log === "function") log("hub prime: " + (err.message || err));
+        });
       }
     } catch (err) {
       var st = document.getElementById("walletStatus");

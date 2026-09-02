@@ -11,6 +11,7 @@ const SOL_RPCS = [
   "https://api.mainnet-beta.solana.com"
 ];
 const ROUTE_BLOCK_KEY = "buon_route_blocked_mints";
+const PENDING_BRIDGE_KEY = "buon_pending_bridge";
 const RPC = {
   8453: ["https://base.publicnode.com", "https://base.drpc.org", "https://mainnet.base.org"],
   1: ["https://cloudflare-eth.com"],
@@ -52,10 +53,26 @@ function executionContext(chainId) {
 var evmQueue = Promise.resolve();
 var evmNonce = {};
 var blockedMints = new Set(JSON.parse(localStorage.getItem(ROUTE_BLOCK_KEY) || "[]"));
+var primePromise = null;
+var lastPrimeAt = 0;
 
 function logLine(m) { if (typeof log === "function") log(m); }
 function routeKey(mint) { return String(mint || "").trim(); }
 function saveBlockedMints() { localStorage.setItem(ROUTE_BLOCK_KEY, JSON.stringify(Array.from(blockedMints).slice(0, 200))); }
+function loadPendingBridge() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_BRIDGE_KEY) || "null");
+  } catch (_) {
+    return null;
+  }
+}
+function savePendingBridge(pending) {
+  if (!pending) {
+    localStorage.removeItem(PENDING_BRIDGE_KEY);
+    return;
+  }
+  localStorage.setItem(PENDING_BRIDGE_KEY, JSON.stringify(pending));
+}
 function blockRouteMint(mint, symbol, reason) {
   var key = routeKey(mint);
   if (!key) return;
@@ -251,7 +268,38 @@ async function relayQuote(body) {
     });
   });
   if (!txs.length) throw new Error("Relay returned no tx");
-  return { tool: "relay", txs: txs };
+  return {
+    tool: "relay",
+    txs: txs,
+    requestId: q.requestId || (((q.steps || [])[0] || {}).requestId) || "",
+    checkEndpoint: ((((q.steps || [])[0] || {}).items || [])[0] || {}).check ? ((((q.steps || [])[0] || {}).items || [])[0] || {}).check.endpoint : ""
+  };
+}
+async function relayStatus(requestId, checkEndpoint) {
+  var endpoint = checkEndpoint || (requestId ? "/intents/status?requestId=" + encodeURIComponent(requestId) : "");
+  if (!endpoint) throw new Error("missing relay request id");
+  var url = endpoint.indexOf("http") === 0 ? endpoint : "https://api.relay.link" + endpoint;
+  var res = await fetch(url, { method: "GET", headers: { accept: "application/json" } });
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || ("relay status http " + res.status));
+  return data;
+}
+async function waitForRelayCompletion(requestId, checkEndpoint, maxWaitMs) {
+  var until = Date.now() + Math.max(0, Number(maxWaitMs || 0));
+  var last = null;
+  while (Date.now() <= until) {
+    last = await relayStatus(requestId, checkEndpoint);
+    if (last && last.status === "success") {
+      savePendingBridge(null);
+      return last;
+    }
+    if (last && (last.status === "failure" || last.status === "refund" || last.status === "cancelled")) {
+      savePendingBridge(null);
+      throw new Error("Relay bridge " + last.status);
+    }
+    await delay(1250);
+  }
+  return last;
 }
 async function signSendRelaySol(data) {
   if (!window.solanaWeb3) throw new Error("solana web3 missing");
@@ -379,8 +427,42 @@ async function bridgeBaseUsdcToSolUsdc(amountAtoms) {
     recipient: ctx.destinationAddress
   });
   var hash = await runSteps(q, String(amountAtoms));
+  if (q.requestId) {
+    savePendingBridge({
+      requestId: q.requestId,
+      checkEndpoint: q.checkEndpoint || "",
+      direction: "base_to_sol",
+      amountAtoms: String(amountAtoms),
+      createdAt: Date.now()
+    });
+  }
   logLine("bridge submitted " + hash);
-  return hash;
+  return { hash: hash, requestId: q.requestId || "", checkEndpoint: q.checkEndpoint || "" };
+}
+async function bridgeSolUsdcToBaseUsdc(amountAtoms) {
+  logLine("bridge Solana USDC -> Base USDC to recycle reserve");
+  var q = await relayQuote({
+    user: execPools().sol,
+    originChainId: 792703809,
+    originCurrency: USDC_SOL,
+    destinationChainId: 8453,
+    destinationCurrency: USDC,
+    amount: String(amountAtoms),
+    tradeType: "EXACT_INPUT",
+    recipient: execPools().evm
+  });
+  var hash = await runSteps(q, String(amountAtoms));
+  if (q.requestId) {
+    savePendingBridge({
+      requestId: q.requestId,
+      checkEndpoint: q.checkEndpoint || "",
+      direction: "sol_to_base",
+      amountAtoms: String(amountAtoms),
+      createdAt: Date.now()
+    });
+  }
+  logLine("reverse bridge submitted " + hash);
+  return { hash: hash, requestId: q.requestId || "", checkEndpoint: q.checkEndpoint || "" };
 }
 async function ensureSolUsdcLiquidity(amountAtoms, reserveAtoms) {
   var need = BigInt(amountAtoms || "0");
@@ -394,14 +476,25 @@ async function ensureSolUsdcLiquidity(amountAtoms, reserveAtoms) {
   var shortfall = target - have.sol;
   if (have.base < shortfall) shortfall = have.base;
   if (shortfall > 0n) {
-    await bridgeBaseUsdcToSolUsdc(shortfall.toString());
+    var bridge = await bridgeBaseUsdcToSolUsdc(shortfall.toString());
+    if (bridge.requestId) {
+      var settled = await waitForRelayCompletion(bridge.requestId, bridge.checkEndpoint, 45000);
+      if (!settled || settled.status !== "success") {
+        throw new Error("Bridge pending: Relay has not settled Base->Sol yet.");
+      }
+    }
   }
   var minNeed = need;
-  var haveAfter = await waitForSolUsdc(minNeed.toString(), 45000);
+  var haveAfter = await waitForSolUsdc(minNeed.toString(), 15000);
   if (haveAfter < minNeed) {
     throw new Error("Bridge pending: Solana USDC not ready on " + execPools().sol + ". Retry in a few seconds.");
   }
   return haveAfter;
+}
+function hotReserveAtoms() {
+  var keepUsd = Number((document.getElementById("keepUsd") || {}).value || 0);
+  var sizeUsd = Number((document.getElementById("sizeUsd") || {}).value || 0);
+  return BigInt(Math.max(0, Math.floor((keepUsd + sizeUsd) * 1e6)));
 }
 async function buyViaSolanaUsdcUnified(mint, symbol, amountAtoms) {
   var solExec = execPools().sol;
@@ -476,6 +569,54 @@ async function sellSolana(pos) {
   logLine("sold $" + (pos.symbol || "") + " → " + (Number(quote.outAmount) / 1e6).toFixed(2) + " USDC on Solana");
   return sig;
 }
+window.getRelayStatus = relayStatus;
+window.waitForRelayCompletion = waitForRelayCompletion;
+window.primeExecutionHub = async function (opts) {
+  opts = opts || {};
+  var now = Date.now();
+  if (primePromise) return primePromise;
+  if (!opts.force && now - lastPrimeAt < 8000) return null;
+  primePromise = (async function () {
+    var target = hotReserveAtoms();
+    if (target <= 0n) return { status: "idle", reason: "no-target" };
+    var pending = loadPendingBridge();
+    if (pending && pending.direction === "base_to_sol" && pending.requestId) {
+      var pendingStatus = await relayStatus(pending.requestId, pending.checkEndpoint || "");
+      if (pendingStatus && pendingStatus.status === "success") {
+        savePendingBridge(null);
+      } else {
+        return pendingStatus;
+      }
+    }
+    var balances = await unifiedUsdcAtoms();
+    if (balances.sol >= target || balances.base <= 0n) return { status: "ready", sol: balances.sol.toString(), base: balances.base.toString() };
+    var shortfall = target - balances.sol;
+    if (shortfall > balances.base) shortfall = balances.base;
+    if (shortfall <= 0n) return { status: "ready", sol: balances.sol.toString(), base: balances.base.toString() };
+    var bridge = await bridgeBaseUsdcToSolUsdc(shortfall.toString());
+    if (opts.wait && bridge.requestId) return await waitForRelayCompletion(bridge.requestId, bridge.checkEndpoint, 45000);
+    return { status: bridge.requestId ? "pending" : "submitted", requestId: bridge.requestId || "", hash: bridge.hash };
+  })();
+  try {
+    return await primePromise;
+  } finally {
+    lastPrimeAt = Date.now();
+    primePromise = null;
+  }
+};
+window.reverseExecutionBridge = async function (amountUsd) {
+  if (!window.BUON_TK) throw new Error("Turnkey not ready");
+  var amountAtoms;
+  if (amountUsd == null || amountUsd === "") {
+    amountAtoms = await solTokenAtoms(USDC_SOL);
+  } else {
+    amountAtoms = String(Math.max(0, Math.floor(Number(amountUsd) * 1e6)));
+  }
+  if (!amountAtoms || amountAtoms === "0") throw new Error("No Solana USDC to bridge back");
+  var bridge = await bridgeSolUsdcToBaseUsdc(amountAtoms);
+  if (bridge.requestId) return await waitForRelayCompletion(bridge.requestId, bridge.checkEndpoint, 45000);
+  return bridge;
+};
 
 window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain) {
   try {
@@ -499,6 +640,7 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     if (typeof recordHistory === "function") recordHistory({ type: "buy", usd: size, net: String(chain || toChain), dest: mint, note: symbol });
     if (typeof recordPosition === "function" && lastHash) recordPosition({ mint: mint, symbol: symbol, usdIn: size, chain: String(chain || ""), sig: lastHash });
     logLine("buy $" + symbol + " submitted");
+    if (typeof window.primeExecutionHub === "function") window.primeExecutionHub({ wait: false }).catch(function (err) { logLine("hub prime: " + (err.message || err)); });
     if (typeof refreshBalance === "function") refreshBalance();
   } catch (err) {
     logLine("swap: " + (err.message || err));
