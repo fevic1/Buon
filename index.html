@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Buon</title>
-  <link rel="stylesheet" href="./styles.css?v=55" />
-  <link rel="stylesheet" href="./pulse.css?v=55" />
-  <link rel="stylesheet" href="./ticker.css?v=55" />
-  <link rel="stylesheet" href="./layout.css?v=55" />
-  <link rel="stylesheet" href="./pos.css?v=55" />
+  <link rel="stylesheet" href="./styles.css?v=56" />
+  <link rel="stylesheet" href="./pulse.css?v=56" />
+  <link rel="stylesheet" href="./ticker.css?v=56" />
+  <link rel="stylesheet" href="./layout.css?v=56" />
+  <link rel="stylesheet" href="./pos.css?v=56" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -62,48 +62,48 @@
   <div class="shade" id="shade" hidden><aside class="sheet" id="sheet"></aside></div>
   <div class="shade" id="setShade" hidden>
     <aside class="sheet" id="settingsPanel">
-      <div class="sheet-h"><div class="grow"><div class="who">Settings</div><div class="meta">Size, take profit, signer keys</div></div><button class="ghost slim" id="settingsClose" type="button">Close</button></div>
-      <label>Size per buy (USDC)<input type="number" id="sizeUsd" min="1" max="500" value="10" /></label>
-      <label>Take profit %<input type="number" id="tpPct" min="5" max="500" value="30" /></label>
-      <label class="toggle"><input type="checkbox" id="autoTp" /><span>Auto sell at take profit</span></label>
-      <label>Min alert (USD)<input type="number" id="minAlert" min="0" max="100000" value="250" /></label>
-      <label>Overlap<input type="number" id="minOverlap" min="2" max="15" value="3" /></label>
-      <label class="toggle"><input type="checkbox" id="autoBuy" /><span>Auto only on crowded overlap</span></label>
-      <label>Max open positions<input type="number" id="maxOpen" min="1" max="10" value="2" /></label>
-      <label>Keep in pool (USDC)<input type="number" id="keepUsd" min="0" max="100" value="5" /></label>
-      <p class="fine">Turnkey signer — stays on this browser only</p>
-      <label>Organization ID<input id="tkOrg" autocomplete="off" /></label>
-      <label>API public key<input id="tkPub" autocomplete="off" /></label>
-      <label>API private key<input id="tkPriv" type="password" autocomplete="off" /></label>
-      <label>Wallet ID<input id="tkWallet" placeholder="optional" autocomplete="off" /></label>
-      <button class="primary slim" id="saveKeysBtn" type="button">Save</button>
-      <label>Optional Helius<input id="rpcUrl" type="password" placeholder="leave blank" autocomplete="off" /></label>
-      <button class="ghost slim" id="refreshBal" type="button">Refresh balance</button>
-      <div class="w-addr" id="walletAddr">not signed in</div>
+      <div class="sheet-h"><div class="grow\"><div class=\"who\">Settings</div><div class=\"meta\">Size, take profit, signer keys</div></div><button class=\"ghost slim\" id=\"settingsClose\" type=\"button\">Close</button></div>
+      <label>Size per buy (USDC)<input type=\"number\" id=\"sizeUsd\" min=\"1\" max=\"500\" value=\"10\" /></label>
+      <label>Take profit %<input type=\"number\" id=\"tpPct\" min=\"5\" max=\"500\" value=\"30\" /></label>
+      <label class=\"toggle\"><input type=\"checkbox\" id=\"autoTp\" /><span>Auto sell at take profit</span></label>
+      <label>Min alert (USD)<input type=\"number\" id=\"minAlert\" min=\"0\" max=\"100000\" value=\"250\" /></label>
+      <label>Overlap<input type=\"number\" id=\"minOverlap\" min=\"2\" max=\"15\" value=\"3\" /></label>
+      <label class=\"toggle\"><input type=\"checkbox\" id=\"autoBuy\" /><span>Auto only on crowded overlap</span></label>
+      <label>Max open positions<input type=\"number\" id=\"maxOpen\" min=\"1\" max=\"10\" value=\"2\" /></label>
+      <label>Keep in pool (USDC)<input type=\"number\" id=\"keepUsd\" min=\"0\" max=\"100\" value=\"5\" /></label>
+      <p class=\"fine\">Turnkey signer — stays on this browser only</p>
+      <label>Organization ID<input id=\"tkOrg\" autocomplete=\"off\" /></label>
+      <label>API public key<input id=\"tkPub\" autocomplete=\"off\" /></label>
+      <label>API private key<input id=\"tkPriv\" type=\"password\" autocomplete=\"off\" /></label>
+      <label>Wallet ID<input id=\"tkWallet\" placeholder=\"optional\" autocomplete=\"off\" /></label>
+      <button class=\"primary slim\" id=\"saveKeysBtn\" type=\"button\">Save</button>
+      <label>Optional Helius<input id=\"rpcUrl\" type=\"password\" placeholder=\"leave blank\" autocomplete=\"off\" /></label>
+      <button class=\"ghost slim\" id=\"refreshBal\" type=\"button\">Refresh balance</button>
+      <div class=\"w-addr\" id=\"walletAddr\">not signed in</div>
     </aside>
   </div>
-  <div class="toast" id="toast"></div>
-  <div id="auth-root"></div>
-  <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-  <script src="./app.js?v=55"></script>
-  <script src="./history.js?v=55"></script>
-  <script src="./wallet.js?v=55"></script>
-  <script src="./keys.js?v=55"></script>
-  <script src="./desk.js?v=55"></script>
-  <script src="./positions.js?v=55"></script>
-  <script src="./settings-tp.js?v=55"></script>
-  <script src="./launch.js?v=55"></script>
-  <script src="./live.js?v=55"></script>
-  <script src="./ui.js?v=55"></script>
-  <script src="./tape-bar.js?v=55"></script>
-  <script src="./tape-live.js?v=55"></script>
-  <script src="./potential.js?v=55"></script>
-  <script src="./profile.js?v=55"></script>
-  <script src="./watch.js?v=55"></script>
-  <script src="./recover.js?v=55"></script>
-  <script type="module" src="./privy-auth.js?v=55"></script>
-  <script type="module" src="./turnkey.js?v=55"></script>
-  <script type="module" src="./swap.js?v=55"></script>
-  <script src="./strategy.js?v=55"></script>
+  <div class=\"toast\" id=\"toast\"></div>
+  <div id=\"auth-root\"></div>
+  <script src=\"https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js\"></script>
+  <script src=\"./app.js?v=56\"></script>
+  <script src=\"./history.js?v=56\"></script>
+  <script src=\"./wallet.js?v=56\"></script>
+  <script src=\"./keys.js?v=56\"></script>
+  <script src=\"./desk.js?v=56\"></script>
+  <script src=\"./positions.js?v=56\"></script>
+  <script src=\"./settings-tp.js?v=56\"></script>
+  <script src=\"./launch.js?v=56\"></script>
+  <script src=\"./live.js?v=56\"></script>
+  <script src=\"./ui.js?v=56\"></script>
+  <script src=\"./tape-bar.js?v=56\"></script>
+  <script src=\"./tape-live.js?v=56\"></script>
+  <script src=\"./potential.js?v=56\"></script>
+  <script src=\"./profile.js?v=56\"></script>
+  <script src=\"./watch.js?v=56\"></script>
+  <script src=\"./recover.js?v=56\"></script>
+  <script type=\"module\" src=\"./privy-auth.js?v=56\"></script>
+  <script type=\"module\" src=\"./turnkey.js?v=56\"></script>
+  <script type=\"module\" src=\"./swap.js?v=56\"></script>
+  <script src=\"./strategy.js?v=56\"></script>
 </body>
 </html>
