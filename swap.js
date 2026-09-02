@@ -5,7 +5,10 @@ const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const ZERO = "0x0000000000000000000000000000000000000000";
 const EXEC_EVM_DEFAULT = "0xB1ACDaF72cA6648DdD54F5dB85B9Cf75d58f82b8";
 const EXEC_SOL_DEFAULT = "8ZGuiQZzb6BMDeWjzPzowr6B839ftaJS15ihoscfqEk4";
-const SOL_RPC = "https://api.mainnet-beta.solana.com";
+const SOL_RPCS = [
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com"
+];
 const RPC = {
   8453: ["https://base.publicnode.com", "https://base.drpc.org", "https://mainnet.base.org"],
   1: ["https://cloudflare-eth.com"],
@@ -66,10 +69,17 @@ async function rpc(chainId, method, params) {
   throw new Error(last);
 }
 async function solRpc(method, params) {
-  var res = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
-  var data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.result;
+  var last = "sol rpc";
+  for (var i = 0; i < SOL_RPCS.length; i++) {
+    try {
+      var res = await fetch(SOL_RPCS[i], { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+      if (!res.ok) { last = "http " + res.status; continue; }
+      var data = await res.json();
+      if (data.error) { last = data.error.message || "sol rpc"; continue; }
+      return data.result;
+    } catch (e) { last = e.message || String(e); }
+  }
+  throw new Error(last);
 }
 function b64ToHex(b64) {
   var raw = atob(b64);
@@ -209,7 +219,7 @@ async function signSendRelaySol(data) {
   if (!window.solanaWeb3) throw new Error("solana web3 missing");
   var web3 = window.solanaWeb3;
   var payer = new web3.PublicKey(execPools().sol);
-  var conn = new web3.Connection(SOL_RPC, "confirmed");
+  var conn = new web3.Connection(SOL_RPCS[0], "confirmed");
   var bh = await conn.getLatestBlockhash("confirmed");
   var instructions = (data.instructions || []).map(function (ix) {
     return new web3.TransactionInstruction({
