@@ -170,9 +170,24 @@ async function signSendSol(unsignedHex) {
   var bytes = signed.replace(/^0x/, "");
   var bin = new Uint8Array(bytes.match(/.{1,2}/g).map(function (b) { return parseInt(b, 16); }));
   var b64 = btoa(String.fromCharCode.apply(null, bin));
-  var sig = await solRpc("sendTransaction", [b64, { encoding: "base64", skipPreflight: false }]);
-  logLine("sol sent " + sig);
-  return sig;
+  var last = "sol send";
+  for (var i = 0; i < SOL_RPCS.length; i++) {
+    try {
+      var conn = new window.solanaWeb3.Connection(SOL_RPCS[i], "confirmed");
+      var tx = window.solanaWeb3.VersionedTransaction.deserialize(bin);
+      var sim = await conn.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: false });
+      if (sim && sim.value && sim.value.err) {
+        throw new Error("Simulation failed: " + JSON.stringify(sim.value.err));
+      }
+      var sig = await conn.sendRawTransaction(bin, { skipPreflight: false, maxRetries: 3 });
+      logLine("sol sent " + sig);
+      return sig;
+    } catch (e) {
+      last = e.message || String(e);
+      if (/Simulation failed:/i.test(last)) throw new Error(last);
+    }
+  }
+  throw new Error(last);
 }
 async function allowance(token, spender, chainId) {
   var owner = execPools().evm.slice(2).toLowerCase().padStart(64, "0");
