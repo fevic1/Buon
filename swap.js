@@ -423,11 +423,8 @@ async function buyViaSolanaUsdcUnified(mint, symbol, amountAtoms) {
   try {
     return await signSendSol(b64ToHex(swap.swapTransaction));
   } catch (err) {
-    if (isRouteSimulationError(err)) {
-      blockRouteMint(mint, symbol, "solana route simulation");
-      return null;
-    }
-    throw err;
+    blockRouteMint(mint, symbol, isRouteSimulationError(err) ? "solana route simulation" : (err && err.message ? err.message : "solana buy failed"));
+    return null;
   }
 }
 async function buyViaRelayFromSolUsdc(mint, symbol, toChain, amountAtoms) {
@@ -451,11 +448,8 @@ async function buyViaRelayFromSolUsdc(mint, symbol, toChain, amountAtoms) {
   try {
     return await runSteps(q, String(amountAtoms));
   } catch (err) {
-    if (isRouteSimulationError(err)) {
-      blockRouteMint(mint, symbol, "relay route simulation");
-      return null;
-    }
-    throw err;
+    blockRouteMint(mint, symbol, isRouteSimulationError(err) ? "relay route simulation" : (err && err.message ? err.message : "relay buy failed"));
+    return null;
   }
 }
 async function sellSolana(pos) {
