@@ -9,6 +9,7 @@ const SOL_RPCS = [
   "https://solana-rpc.publicnode.com",
   "https://api.mainnet-beta.solana.com"
 ];
+const ROUTE_BLOCK_KEY = "buon_route_blocked_mints";
 const RPC = {
   8453: ["https://base.publicnode.com", "https://base.drpc.org", "https://mainnet.base.org"],
   1: ["https://cloudflare-eth.com"],
@@ -46,8 +47,21 @@ function executionContext(chainId) {
 
 var evmQueue = Promise.resolve();
 var evmNonce = {};
+var blockedMints = new Set(JSON.parse(localStorage.getItem(ROUTE_BLOCK_KEY) || "[]"));
 
 function logLine(m) { if (typeof log === "function") log(m); }
+function routeKey(mint) { return String(mint || "").trim(); }
+function saveBlockedMints() { localStorage.setItem(ROUTE_BLOCK_KEY, JSON.stringify(Array.from(blockedMints).slice(0, 200))); }
+function blockRouteMint(mint, symbol, reason) {
+  var key = routeKey(mint);
+  if (!key) return;
+  if (!blockedMints.has(key)) {
+    blockedMints.add(key);
+    saveBlockedMints();
+  }
+  logLine("skip $" + (symbol || mint || "?") + " route blocked" + (reason ? " · " + reason : ""));
+}
+function isRouteBlocked(mint) { return blockedMints.has(routeKey(mint)); }
 function destChain(chain, mint) {
   var c = String(chain || "").toLowerCase();
   if (CHAIN[c]) return CHAIN[c];
@@ -188,6 +202,10 @@ async function signSendSol(unsignedHex) {
     }
   }
   throw new Error(last);
+}
+function isRouteSimulationError(err) {
+  var msg = String((err && err.message) || err || "");
+  return /0x1789|6025|SharedAccountsRoute|Simulation failed/i.test(msg);
 }
 async function allowance(token, spender, chainId) {
   var owner = execPools().evm.slice(2).toLowerCase().padStart(64, "0");
@@ -402,7 +420,15 @@ async function buyViaSolanaUsdcUnified(mint, symbol, amountAtoms) {
     body: JSON.stringify({ quoteResponse: quote, userPublicKey: solExec, wrapAndUnwrapSol: false, dynamicComputeUnitLimit: true })
   }).then(function (r) { return r.json(); });
   if (!swap.swapTransaction) throw new Error(swap.error || "no swap tx");
-  return signSendSol(b64ToHex(swap.swapTransaction));
+  try {
+    return await signSendSol(b64ToHex(swap.swapTransaction));
+  } catch (err) {
+    if (isRouteSimulationError(err)) {
+      blockRouteMint(mint, symbol, "solana route simulation");
+      return null;
+    }
+    throw err;
+  }
 }
 async function buyViaRelayFromSolUsdc(mint, symbol, toChain, amountAtoms) {
   var ctx = executionContext(toChain);
@@ -422,7 +448,15 @@ async function buyViaRelayFromSolUsdc(mint, symbol, toChain, amountAtoms) {
     tradeType: "EXACT_INPUT",
     recipient: ctx.destinationAddress
   });
-  return runSteps(q, String(amountAtoms));
+  try {
+    return await runSteps(q, String(amountAtoms));
+  } catch (err) {
+    if (isRouteSimulationError(err)) {
+      blockRouteMint(mint, symbol, "relay route simulation");
+      return null;
+    }
+    throw err;
+  }
 }
 async function sellSolana(pos) {
   var atoms = await solTokenAtoms(pos.mint);
@@ -450,6 +484,10 @@ window.deskBuy = window.proposeBuy = async function (mint, symbol, _auto, chain)
     var toChain = destChain(chain, mint);
     var ctx = executionContext(toChain);
     if (!mint) throw new Error("no mint");
+    if (isRouteBlocked(mint)) {
+      logLine("skip $" + (symbol || "?") + " known-bad route");
+      return null;
+    }
     var size = Number((document.getElementById("sizeUsd") || {}).value || 10);
     var amount = String(Math.floor(size * 1e6));
     logLine("exec " + ctx.sourceAddress.slice(0, 8) + "... Solana USDC hub → chain " + toChain + " token $" + symbol);
