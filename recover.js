@@ -7,6 +7,7 @@
     { mint: "0xedAee44320107CAa714BaAEc486261A87F27022d", symbol: "PONGO", chain: "robinhood" },
     { mint: "DUZN7M6ezXez9UVrou4N8UEGRkwnbWmXqqZgEKiZCrnN", symbol: "MARKET", chain: "solana" }
   ];
+  var busy = false;
 
   async function solRpc(method, params) {
     var res = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
@@ -83,22 +84,27 @@
   }
   window.recoverPositions = recover;
   window.closeAllHoldings = async function () {
-    log("Flatten: selling every on-chain bag back toward USDC");
-    var bags = [];
-    try { bags = await listBags(); } catch (err) { log("flatten list: " + (err.message || err)); return; }
-    if (!bags.length) { log("Flatten: nothing left on pool addresses"); return; }
-    for (var i = 0; i < bags.length; i++) {
-      var bag = bags[i];
-      log("Flatten " + bag.symbol + " on " + bag.chain);
-      try {
-        if (typeof window.deskSell === "function") await window.deskSell(bag);
-      } catch (err) {
-        log("close " + bag.symbol + ": " + (err.message || err));
+    if (busy) { log("Flatten already running"); return; }
+    busy = true;
+    try {
+      log("Flatten: one bag at a time");
+      var bags = await listBags();
+      if (!bags.length) { log("Flatten: nothing left"); return; }
+      for (var i = 0; i < bags.length; i++) {
+        var bag = bags[i];
+        log("Flatten " + bag.symbol + " on " + bag.chain);
+        try {
+          if (typeof window.deskSell === "function") await window.deskSell(bag);
+        } catch (err) {
+          log("close " + bag.symbol + ": " + (err.message || err));
+        }
       }
+      if (typeof refreshBalance === "function") setTimeout(refreshBalance, 5000);
+    } finally {
+      busy = false;
     }
-    if (typeof refreshBalance === "function") setTimeout(refreshBalance, 5000);
   };
   recover().then(function (bags) {
-    if (bags && bags.length) setTimeout(function () { window.closeAllHoldings(); }, 1800);
+    if (bags && bags.length) setTimeout(function () { window.closeAllHoldings(); }, 2500);
   });
 })();
