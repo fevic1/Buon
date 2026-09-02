@@ -40,12 +40,12 @@
     var prev = prevRaw == null ? null : Number(prevRaw);
     localStorage.setItem(LAST, String(usd));
     if (prev == null) {
-      if (usd > 0.009) recordHistory({ type: "deposit", usd: usd, net: "base", note: "pool first seen" });
+      if (usd > 0.009) recordHistory({ type: "deposit", usd: usd, net: "sol-usdc-hub", note: "pool first seen" });
       return;
     }
     var delta = Math.round((usd - prev) * 100) / 100;
-    if (delta >= 0.01) recordHistory({ type: "deposit", usd: delta, net: "base" });
-    if (delta <= -0.01) recordHistory({ type: "withdraw", usd: Math.abs(delta), net: "base" });
+    if (delta >= 0.01) recordHistory({ type: "deposit", usd: delta, net: "sol-usdc-hub" });
+    if (delta <= -0.01) recordHistory({ type: "withdraw", usd: Math.abs(delta), net: "sol-usdc-hub" });
   };
   draw();
 })();

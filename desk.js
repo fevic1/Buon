@@ -59,13 +59,16 @@
   }
   function paintCash(solUsdcBal, baseUsdcBal) {
     var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;
-    state.cashUsdc = Number(solUsdcBal || 0);
+    var solPart = Number(solUsdcBal || 0);
+    var basePart = Number(baseUsdcBal || 0);
+    var effective = solPart + basePart;
+    state.cashUsdc = effective;
     localStorage.setItem(LAST, String(state.cashUsdc));
     var amt = document.getElementById("cashAmt");
-    if (amt) amt.textContent = Number(solUsdcBal || 0).toFixed(2) + " USDC";
+    if (amt) amt.textContent = effective.toFixed(2) + " USDC";
     var st = document.getElementById("walletStatus");
-    if (st) st.textContent = "hub sol " + Number(solUsdcBal || 0).toFixed(2) + " · base reserve " + Number(baseUsdcBal || 0).toFixed(2);
-    if (typeof notePoolBalance === "function") notePoolBalance(solUsdcBal);
+    if (st) st.textContent = "sol exec " + solPart.toFixed(2) + " · base reserve " + basePart.toFixed(2) + " · effective " + effective.toFixed(2);
+    if (typeof notePoolBalance === "function") notePoolBalance(effective);
   }
   window.refreshBalance = window.deskRefresh = async function () {
     var pool = (window.BUON_POOL && window.BUON_POOL.evm) || POOL;

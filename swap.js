@@ -181,6 +181,17 @@ async function baseUsdcAtoms() {
   var raw = await rpc(8453, "eth_call", [{ to: USDC, data: data }, "latest"]);
   return BigInt(raw || "0x0");
 }
+async function unifiedUsdcAtoms() {
+  var values = await Promise.all([
+    solTokenAtoms(USDC_SOL).then(function (v) { return BigInt(v || "0"); }),
+    baseUsdcAtoms()
+  ]);
+  return {
+    sol: values[0],
+    base: values[1],
+    total: values[0] + values[1]
+  };
+}
 async function relayQuote(body) {
   var res = await fetch("https://api.relay.link/quote/v2", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   var q = await res.json();
@@ -323,16 +334,32 @@ async function bridgeBaseUsdcToSolUsdc(amountAtoms) {
   logLine("bridge submitted " + hash);
   return hash;
 }
+async function ensureSolUsdcLiquidity(amountAtoms, reserveAtoms) {
+  var need = BigInt(amountAtoms || "0");
+  var reserve = BigInt(reserveAtoms || "0");
+  var have = await unifiedUsdcAtoms();
+  if (have.total < need) {
+    throw new Error("Insufficient USDC total (Sol+Base) for this buy");
+  }
+  var target = need + reserve;
+  if (have.sol >= target) return have.sol;
+  var shortfall = target - have.sol;
+  if (have.base < shortfall) shortfall = have.base;
+  if (shortfall > 0n) {
+    await bridgeBaseUsdcToSolUsdc(shortfall.toString());
+  }
+  var minNeed = need;
+  var haveAfter = await waitForSolUsdc(minNeed.toString(), 45000);
+  if (haveAfter < minNeed) {
+    throw new Error("Bridge pending: Solana USDC not ready on " + execPools().sol + ". Retry in a few seconds.");
+  }
+  return haveAfter;
+}
 async function buyViaSolanaUsdcUnified(mint, symbol, amountAtoms) {
   var solExec = execPools().sol;
-  var haveBefore = BigInt(await solTokenAtoms(USDC_SOL));
-  if (haveBefore < BigInt(amountAtoms)) {
-    await bridgeBaseUsdcToSolUsdc(amountAtoms);
-    var haveAfter = await waitForSolUsdc(amountAtoms, 45000);
-    if (haveAfter < BigInt(amountAtoms)) {
-      throw new Error("Bridge pending: Solana USDC not ready on " + solExec + ". Retry in a few seconds.");
-    }
-  }
+  var keepUsd = Number((document.getElementById("keepUsd") || {}).value || 0);
+  var reserveAtoms = String(Math.max(0, Math.floor(keepUsd * 1e6)));
+  await ensureSolUsdcLiquidity(amountAtoms, reserveAtoms);
 
   if ((await solLamports()) < 500000) {
     throw new Error("No SOL gas on " + solExec + " — Solana buy blocked");
@@ -354,14 +381,9 @@ async function buyViaSolanaUsdcUnified(mint, symbol, amountAtoms) {
 }
 async function buyViaRelayFromSolUsdc(mint, symbol, toChain, amountAtoms) {
   var ctx = executionContext(toChain);
-  var haveSolUsdc = BigInt(await solTokenAtoms(USDC_SOL));
-  if (haveSolUsdc < BigInt(amountAtoms)) {
-    await bridgeBaseUsdcToSolUsdc(amountAtoms);
-    var topped = await waitForSolUsdc(amountAtoms, 45000);
-    if (topped < BigInt(amountAtoms)) {
-      throw new Error("Bridge pending: Solana USDC not ready on " + ctx.sourceAddress + ". Retry in a few seconds.");
-    }
-  }
+  var keepUsd = Number((document.getElementById("keepUsd") || {}).value || 0);
+  var reserveAtoms = String(Math.max(0, Math.floor(keepUsd * 1e6)));
+  await ensureSolUsdcLiquidity(amountAtoms, reserveAtoms);
   if ((await solLamports()) < 500000) {
     throw new Error("No SOL gas on " + ctx.sourceAddress + " — cross-chain buy blocked");
   }
@@ -454,7 +476,16 @@ window.deskSell = async function (pos) {
 };
 
 window.executionWalletContext = function () {
-  return executionContext(792703809);
+  var ctx = executionContext(792703809);
+  return {
+    sourceChainId: ctx.sourceChainId,
+    sourceToken: ctx.sourceToken,
+    sourceAddress: ctx.sourceAddress,
+    destinationChainId: ctx.destinationChainId,
+    destinationAddress: ctx.destinationAddress,
+    solExecutionAddress: ctx.solExecutionAddress,
+    unifiedSource: "All deposited USDC is normalized to Solana USDC via Base->Sol bridge when needed"
+  };
 };
 
 window.checkExecutionRoutes = async function (mintByChain) {
