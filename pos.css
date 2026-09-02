@@ -12,3 +12,36 @@
 .pos-card.down .pos-pnl { color: var(--red); }
 .pos-card .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
 .pos-card .acts .wide { grid-column: 1 / -1; }
+
+.stack .mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+}
+.stack .mini:hover { border-color: var(--line); background: #121a30; }
+.stack .mini b { display: flex; align-items: center; gap: 6px; font-size: 14px; letter-spacing: -0.02em; }
+.stack .mini .meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
+}
+.stack .mini .rail-n { color: var(--soft); font-family: var(--mono); font-size: 11px; }
+.stack .mini .buy, .stack .mini .ghost {
+  justify-self: end;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+.pos-empty {
+  padding: 18px 8px 8px;
+  text-align: center;
+}
+.pos-empty .who { color: var(--text); }
+.pos-empty .meta { margin-top: 4px; }
