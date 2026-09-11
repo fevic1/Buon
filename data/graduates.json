@@ -8,15 +8,15 @@
       "name": "WOFI",
       "mint": "2YKhbSSAwyy7CHmKR7nvPviQe8voXYKoMKQekPwHpump",
       "chain": "solana",
-      "mc": 779187609.4965055,
+      "mc": 855536441.158254,
       "source": "pump"
     },
     {
       "symbol": "WOTF",
       "name": "WOTF",
-      "mint": "xKjreN2S5Y5cvdVKeATFpJuFYunkkhjgYC74rJApump",
+      "mint": "8YR5w7b4F2FtXibVbCQd9V2YhsF8HVpWFUkF2gDpump",
       "chain": "solana",
-      "mc": 388505821.1844788,
+      "mc": 415755146.9203557,
       "source": "pump"
     },
     {
@@ -24,15 +24,7 @@
       "name": "WOFI",
       "mint": "tRLRzPFshvQ8HgGEAX7mzGpwQAfznC86DunHNmLpump",
       "chain": "solana",
-      "mc": 333994784.83254784,
-      "source": "pump"
-    },
-    {
-      "symbol": "WOTF",
-      "name": "WOTF",
-      "mint": "AuH5siGGhBrw5xMbg75Fcg1ufcRNHE4cakfavEURpump",
-      "chain": "solana",
-      "mc": 328312716.7518308,
+      "mc": 375662034.202814,
       "source": "pump"
     },
     {
@@ -40,15 +32,15 @@
       "name": "National Trump Digital Accounts",
       "mint": "o8J4FYg8CD1ACt3Rdx9p5oYccoTXWNfGXSC3Nq4pump",
       "chain": "solana",
-      "mc": 323634361.25368595,
+      "mc": 368177330.5634029,
       "source": "pump"
     },
     {
-      "symbol": "PONYX",
-      "name": "PROJECT ONYX",
-      "mint": "i8djEHBMoGvqXVRSPSzazBdJ6jX58LDx8VT4si4pump",
+      "symbol": "WOTF",
+      "name": "WOTF",
+      "mint": "AuH5siGGhBrw5xMbg75Fcg1ufcRNHE4cakfavEURpump",
       "chain": "solana",
-      "mc": 319900835.89986163,
+      "mc": 367115062.9373388,
       "source": "pump"
     },
     {
@@ -56,15 +48,7 @@
       "name": "WWR",
       "mint": "edytdReZnaDRNujWd2NerL2AYwpUgqWm4QMxzfYpump",
       "chain": "solana",
-      "mc": 244721322.26264676,
-      "source": "pump"
-    },
-    {
-      "symbol": "ANSEM",
-      "name": "The Black Bull",
-      "mint": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
-      "chain": "solana",
-      "mc": 159023636.40080506,
+      "mc": 280563666.70800716,
       "source": "pump"
     },
     {
@@ -72,7 +56,15 @@
       "name": "WOFI",
       "mint": "NU5VFTcSrb61vmVGAZoecmPcbRmU3CXJZZ13E1xpump",
       "chain": "solana",
-      "mc": 156605113.09636962,
+      "mc": 186564399.811731,
+      "source": "pump"
+    },
+    {
+      "symbol": "ANSEM",
+      "name": "The Black Bull",
+      "mint": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
+      "chain": "solana",
+      "mc": 154772318.23296973,
       "source": "pump"
     },
     {
@@ -80,15 +72,7 @@
       "name": "Fartcoin ",
       "mint": "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
       "chain": "solana",
-      "mc": 139793517.37815186,
-      "source": "pump"
-    },
-    {
-      "symbol": "USWS",
-      "name": "United States Water Supply",
-      "mint": "ou5B3mMhhHLdUtovibSo5ivcHBpV7TK5PxtZQp4pump",
-      "chain": "solana",
-      "mc": 110860972.35725191,
+      "mc": 139667478.00910833,
       "source": "pump"
     },
     {
@@ -96,7 +80,7 @@
       "name": "United States Water Supply",
       "mint": "217Eyay6T27rcVhG4vEALV38uobRBch2B7bZs4H7pump",
       "chain": "solana",
-      "mc": 99204641.69585052,
+      "mc": 99035670.29751009,
       "source": "pump"
     },
     {
@@ -104,15 +88,7 @@
       "name": "WOFI",
       "mint": "BYKbjoxU5BfpnXvUeUwwiuBJzH7wf8J5rknNtgF4pump",
       "chain": "solana",
-      "mc": 84225897.65782617,
-      "source": "pump"
-    },
-    {
-      "symbol": "arc",
-      "name": "AI Rig Complex",
-      "mint": "61V8vBaqAGMpgDQi4JcAwo1dmBGHsyhzodcPqnEVpump",
-      "chain": "solana",
-      "mc": 74241519.64840207,
+      "mc": 90611435.30430585,
       "source": "pump"
     },
     {
@@ -120,7 +96,15 @@
       "name": "RST",
       "mint": "etdTWsttdkKmnNsAfRZ6K2QXX9DX5A6BZeynrtopump",
       "chain": "solana",
-      "mc": 65235607.21172746,
+      "mc": 85255746.68480055,
+      "source": "pump"
+    },
+    {
+      "symbol": "arc",
+      "name": "AI Rig Complex",
+      "mint": "61V8vBaqAGMpgDQi4JcAwo1dmBGHsyhzodcPqnEVpump",
+      "chain": "solana",
+      "mc": 74311076.75052676,
       "source": "pump"
     },
     {
@@ -128,23 +112,7 @@
       "name": "Comedian",
       "mint": "9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump",
       "chain": "solana",
-      "mc": 59285241.8928,
-      "source": "pump"
-    },
-    {
-      "symbol": "CATE",
-      "name": "Catecoin",
-      "mint": "Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump",
-      "chain": "solana",
-      "mc": 57986424.174722746,
-      "source": "pump"
-    },
-    {
-      "symbol": "jellyjelly",
-      "name": "jelly-my-jelly",
-      "mint": "FeR8VBqNRSUD5NtXAj2n3j1dAHkZHfyDktKuLXD4pump",
-      "chain": "solana",
-      "mc": 56254887.967974946,
+      "mc": 66171175.90600762,
       "source": "pump"
     },
     {
@@ -152,7 +120,23 @@
       "name": "South Park Sucks Now",
       "mint": "D6DjvHe9mJRCmPXihAnuF5AvmSEXWJyNnC3L2GQbpump",
       "chain": "solana",
-      "mc": 54626426.28991297,
+      "mc": 58854023.35151441,
+      "source": "pump"
+    },
+    {
+      "symbol": "jellyjelly",
+      "name": "jelly-my-jelly",
+      "mint": "FeR8VBqNRSUD5NtXAj2n3j1dAHkZHfyDktKuLXD4pump",
+      "chain": "solana",
+      "mc": 57627759.37862053,
+      "source": "pump"
+    },
+    {
+      "symbol": "CATE",
+      "name": "Catecoin",
+      "mint": "Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump",
+      "chain": "solana",
+      "mc": 56093303.058281645,
       "source": "pump"
     },
     {
@@ -160,15 +144,7 @@
       "name": "TROLL",
       "mint": "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2",
       "chain": "solana",
-      "mc": 48407838.94831783,
-      "source": "pump"
-    },
-    {
-      "symbol": "WWR",
-      "name": "WWR",
-      "mint": "vWucpmjgZxUn4XW4iLxs6FiveBxdCnTQA6smATGpump",
-      "chain": "solana",
-      "mc": 46168873.04703268,
+      "mc": 47142557.23551782,
       "source": "pump"
     },
     {
@@ -176,7 +152,7 @@
       "name": "Peanut the Squirrel ",
       "mint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump",
       "chain": "solana",
-      "mc": 45974172.18368015,
+      "mc": 45893173.20225114,
       "source": "pump"
     },
     {
@@ -184,23 +160,7 @@
       "name": "Moo Deng",
       "mint": "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY",
       "chain": "solana",
-      "mc": 38599849.828125834,
-      "source": "pump"
-    },
-    {
-      "symbol": "ZEREBRO",
-      "name": "zerebro",
-      "mint": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
-      "chain": "solana",
-      "mc": 33715392.25106231,
-      "source": "pump"
-    },
-    {
-      "symbol": "BAYC",
-      "name": "BAYC AI",
-      "mint": "ArUyEVWGCzZMtAxcPmNH8nDFZ4kMjxrMbpsQf3NEpump",
-      "chain": "solana",
-      "mc": 33658990.459608234,
+      "mc": 38731852.84985068,
       "source": "pump"
     },
     {
@@ -208,31 +168,7 @@
       "name": "WOFI",
       "mint": "FbVaE5m9foLHhFEDWTP1UG9D4Fm2gAEP5kzLLTixpump",
       "chain": "solana",
-      "mc": 32843836.254281614,
-      "source": "pump"
-    },
-    {
-      "symbol": "WWR",
-      "name": "World Water Reserve",
-      "mint": "UamJRybZf2Py8PwNLygEy3HA4TuZZmM7U9qVoXLpump",
-      "chain": "solana",
-      "mc": 32006619.032700542,
-      "source": "pump"
-    },
-    {
-      "symbol": "WOFI",
-      "name": "WOFI",
-      "mint": "j2wFQAakhPNoAf6erCyVyALVDvLbR5KUhi3DPZrpump",
-      "chain": "solana",
-      "mc": 31710374.684378386,
-      "source": "pump"
-    },
-    {
-      "symbol": "WOTF",
-      "name": "World Oil Trust Fund",
-      "mint": "r7iXRPFHVrYEEP5nFSaFEehrmUoj2fJo1fYrwRypump",
-      "chain": "solana",
-      "mc": 30480158.831903547,
+      "mc": 33780445.56312669,
       "source": "pump"
     },
     {
@@ -240,7 +176,71 @@
       "name": "TNT",
       "mint": "FZJT8WVvJjK9bY2RmBdBL13mmn9uxk1gX2r5UJJ7pump",
       "chain": "solana",
-      "mc": 30001989.018711314,
+      "mc": 33647554.48106267,
+      "source": "pump"
+    },
+    {
+      "symbol": "BAYC",
+      "name": "BAYC AI",
+      "mint": "ArUyEVWGCzZMtAxcPmNH8nDFZ4kMjxrMbpsQf3NEpump",
+      "chain": "solana",
+      "mc": 33498892.8168776,
+      "source": "pump"
+    },
+    {
+      "symbol": "ZEREBRO",
+      "name": "zerebro",
+      "mint": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
+      "chain": "solana",
+      "mc": 33117466.307354767,
+      "source": "pump"
+    },
+    {
+      "symbol": "WWR",
+      "name": "World Water Reserve",
+      "mint": "UamJRybZf2Py8PwNLygEy3HA4TuZZmM7U9qVoXLpump",
+      "chain": "solana",
+      "mc": 32115364.769242436,
+      "source": "pump"
+    },
+    {
+      "symbol": "WOFI",
+      "name": "WOFI",
+      "mint": "j2wFQAakhPNoAf6erCyVyALVDvLbR5KUhi3DPZrpump",
+      "chain": "solana",
+      "mc": 31721743.337411642,
+      "source": "pump"
+    },
+    {
+      "symbol": "WOTF",
+      "name": "World Oil Trust Fund",
+      "mint": "r7iXRPFHVrYEEP5nFSaFEehrmUoj2fJo1fYrwRypump",
+      "chain": "solana",
+      "mc": 30786293.372898262,
+      "source": "pump"
+    },
+    {
+      "symbol": "TNT",
+      "name": "TNT",
+      "mint": "3fbRKdLj4T74nP5HmYKLscmLadSbfbHZE2J6rYwTpump",
+      "chain": "solana",
+      "mc": 28906141.07376369,
+      "source": "pump"
+    },
+    {
+      "symbol": "TOS",
+      "name": "TokenOS AI",
+      "mint": "HmjCoarLh5duURfJ333DwfFiPyTCgFT35pRSAoP8pump",
+      "chain": "solana",
+      "mc": 27373879.135545414,
+      "source": "pump"
+    },
+    {
+      "symbol": "WOULD",
+      "name": "would",
+      "mint": "J1Wpmugrooj1yMyQKrdZ2vwRXG5rhfx3vTnYE39gpump",
+      "chain": "solana",
+      "mc": 27145131.90984,
       "source": "pump"
     }
   ]
