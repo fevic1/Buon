@@ -8,7 +8,7 @@
       "name": "United States Dividend Fund",
       "mint": "Y49yTFUyBiim3HQEiVnVKiiRPqTY2nNrJyvxsi4pump",
       "chain": "solana",
-      "mc": 1058860883.8893744,
+      "mc": 1261761284.6830056,
       "source": "pump"
     },
     {
@@ -16,15 +16,7 @@
       "name": "Vanguard Strategic Oil Fund",
       "mint": "wQK5ZserCHkhUCJQJxLL7NKg4N3o3R9VTEqJFqfpump",
       "chain": "solana",
-      "mc": 987692254.068809,
-      "source": "pump"
-    },
-    {
-      "symbol": "VSOF",
-      "name": "VSOF",
-      "mint": "3CA4RGSFWAu7ePYr2rmCndNqgoYuMj97m5vAn6Zqpump",
-      "chain": "solana",
-      "mc": 589552002.9707756,
+      "mc": 1179195632.7591987,
       "source": "pump"
     },
     {
@@ -32,7 +24,7 @@
       "name": "AROS",
       "mint": "XU438yQcHEf5bGAZ3pHqXhbZPqotoapdanjnhj1pump",
       "chain": "solana",
-      "mc": 481695316.49974024,
+      "mc": 620519880.62955,
       "source": "pump"
     },
     {
@@ -40,31 +32,7 @@
       "name": "GoCollect",
       "mint": "hAvfbtSG3ZTH9wwHQLEERJbiyHypu9Q7JefzhrEpump",
       "chain": "solana",
-      "mc": 362009179.6663973,
-      "source": "pump"
-    },
-    {
-      "symbol": "CALI",
-      "name": "CALI",
-      "mint": "TQxoSmrSPuBaGZn35q1jz4SVdjstJB5YazgSGXHpump",
-      "chain": "solana",
-      "mc": 356375129.56306523,
-      "source": "pump"
-    },
-    {
-      "symbol": "WSOS",
-      "name": "World Strategic Oil Supply",
-      "mint": "cGUkfB4FmTzKnAaVMVgdSaW4nEW8tfQkC2Qhgnepump",
-      "chain": "solana",
-      "mc": 338175707.9401918,
-      "source": "pump"
-    },
-    {
-      "symbol": "NTDA",
-      "name": "NTDA",
-      "mint": "6E1ZANX18QzRNmz4CszNgPqonQ38nkCGhpRqpwwEpump",
-      "chain": "solana",
-      "mc": 291714875.5130499,
+      "mc": 385356205.2294303,
       "source": "pump"
     },
     {
@@ -72,7 +40,39 @@
       "name": "Jean Phil",
       "mint": "14cmYsjbqAHh1DW7iC5cQ2tiAaarbBxvTRHS8K1Tpump",
       "chain": "solana",
-      "mc": 273101242.98830783,
+      "mc": 379328242.34852993,
+      "source": "pump"
+    },
+    {
+      "symbol": "VSOF",
+      "name": "VSOF",
+      "mint": "Gcouss4giwZHXbNaQgZG2RrdCjsSnwcEFhNXa4xApump",
+      "chain": "solana",
+      "mc": 203392178.71209648,
+      "source": "pump"
+    },
+    {
+      "symbol": "NTDA",
+      "name": "NTDA",
+      "mint": "JQhbwzFJKUBPYVR1JSfRyyKP2sypPXSBJguxc8Npump",
+      "chain": "solana",
+      "mc": 198839528.69097456,
+      "source": "pump"
+    },
+    {
+      "symbol": "WSOS",
+      "name": "World Strategic Oil Supply",
+      "mint": "EthghzCFZNvTUbUeHsTZCWXZ4HXjzszSPs9bwvJpump",
+      "chain": "solana",
+      "mc": 184451082.7201083,
+      "source": "pump"
+    },
+    {
+      "symbol": "NTDA",
+      "name": "NTDA",
+      "mint": "yjzc1AyMT4KX84WpsYEF2MT5bwXiA7nY3yBVRVgpump",
+      "chain": "solana",
+      "mc": 176857615.12348744,
       "source": "pump"
     },
     {
@@ -80,7 +80,7 @@
       "name": "Fartcoin ",
       "mint": "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
       "chain": "solana",
-      "mc": 170009525.58822688,
+      "mc": 166857131.74151134,
       "source": "pump"
     },
     {
@@ -88,15 +88,7 @@
       "name": "The Black Bull",
       "mint": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
       "chain": "solana",
-      "mc": 164657759.3035855,
-      "source": "pump"
-    },
-    {
-      "symbol": "XBC",
-      "name": "Xpress Bridge Currency",
-      "mint": "XGF4LygVsa8BFjLRar41GFnQQfoTgnSuo7yA5kmpump",
-      "chain": "solana",
-      "mc": 135268729.9940122,
+      "mc": 151334527.30412734,
       "source": "pump"
     },
     {
@@ -104,7 +96,15 @@
       "name": "NTDA",
       "mint": "bnbf4WnVdqpWDEhM3J5XrF4hkNqoQLSDagmucu1pump",
       "chain": "solana",
-      "mc": 91645835.54055709,
+      "mc": 105647492.22260335,
+      "source": "pump"
+    },
+    {
+      "symbol": "ECTF",
+      "name": "E-Commerce Trust Fund",
+      "mint": "eNBcJZ2yWFs45326ifVxaHWtszPTwCdmgHzH2pTpump",
+      "chain": "solana",
+      "mc": 79577278.46417208,
       "source": "pump"
     },
     {
@@ -112,7 +112,7 @@
       "name": "Catecoin",
       "mint": "Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump",
       "chain": "solana",
-      "mc": 77019222.90612796,
+      "mc": 75154139.8904239,
       "source": "pump"
     },
     {
@@ -120,23 +120,15 @@
       "name": "AI Rig Complex",
       "mint": "61V8vBaqAGMpgDQi4JcAwo1dmBGHsyhzodcPqnEVpump",
       "chain": "solana",
-      "mc": 70419167.91864106,
+      "mc": 69582508.60717703,
       "source": "pump"
     },
     {
-      "symbol": "Ban",
-      "name": "Comedian",
-      "mint": "9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump",
+      "symbol": "NTDA",
+      "name": "NTDA",
+      "mint": "8iYfNM8SpcuAM3KFZcHf7tPHqgf6ZSXiRErg83N1pump",
       "chain": "solana",
-      "mc": 64613111.47722691,
-      "source": "pump"
-    },
-    {
-      "symbol": "jellyjelly",
-      "name": "jelly-my-jelly",
-      "mint": "FeR8VBqNRSUD5NtXAj2n3j1dAHkZHfyDktKuLXD4pump",
-      "chain": "solana",
-      "mc": 57225303.96576447,
+      "mc": 68949973.34609477,
       "source": "pump"
     },
     {
@@ -144,7 +136,31 @@
       "name": "National Trump Digital Accounts",
       "mint": "DBoeuAaioaQSqDMD4vwKUZLFcXyCS9S6tRfkENQXpump",
       "chain": "solana",
-      "mc": 56638381.70453657,
+      "mc": 64914754.41416819,
+      "source": "pump"
+    },
+    {
+      "symbol": "WOTF",
+      "name": "World Oil Trust Fund",
+      "mint": "2GPrgVuQZKazUgS7grwZW91JfCPnepiEmSVCdZrtpump",
+      "chain": "solana",
+      "mc": 63536572.20825811,
+      "source": "pump"
+    },
+    {
+      "symbol": "Ban",
+      "name": "Comedian",
+      "mint": "9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump",
+      "chain": "solana",
+      "mc": 62182134.39438,
+      "source": "pump"
+    },
+    {
+      "symbol": "jellyjelly",
+      "name": "jelly-my-jelly",
+      "mint": "FeR8VBqNRSUD5NtXAj2n3j1dAHkZHfyDktKuLXD4pump",
+      "chain": "solana",
+      "mc": 57255079.24738635,
       "source": "pump"
     },
     {
@@ -152,7 +168,7 @@
       "name": "NTDA",
       "mint": "iPbgGs6ToYZWvBbDPdoDe9xxeaDbPatHGpZn5eXpump",
       "chain": "solana",
-      "mc": 54857691.65645018,
+      "mc": 56483472.205328666,
       "source": "pump"
     },
     {
@@ -160,7 +176,7 @@
       "name": "Peanut the Squirrel ",
       "mint": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump",
       "chain": "solana",
-      "mc": 52800665.91656093,
+      "mc": 52897515.606748275,
       "source": "pump"
     },
     {
@@ -168,15 +184,7 @@
       "name": "Xpress Bridge Currency",
       "mint": "nLvHqjKGjzGwz5rrn91SDKaoxiVDbKXoMKw2jhcpump",
       "chain": "solana",
-      "mc": 51499552.15199655,
-      "source": "pump"
-    },
-    {
-      "symbol": "ALCH",
-      "name": "Alchemist AI",
-      "mint": "HNg5PYJmtqcmzXrv6S9zP1CDKk5BgDuyFBxbvNApump",
-      "chain": "solana",
-      "mc": 46726246.37980781,
+      "mc": 52095873.90851338,
       "source": "pump"
     },
     {
@@ -184,7 +192,15 @@
       "name": "Moo Deng",
       "mint": "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY",
       "chain": "solana",
-      "mc": 45960967.982108474,
+      "mc": 46012376.458431095,
+      "source": "pump"
+    },
+    {
+      "symbol": "ALCH",
+      "name": "Alchemist AI",
+      "mint": "HNg5PYJmtqcmzXrv6S9zP1CDKk5BgDuyFBxbvNApump",
+      "chain": "solana",
+      "mc": 45927982.607353866,
       "source": "pump"
     },
     {
@@ -192,7 +208,7 @@
       "name": "TROLL",
       "mint": "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2",
       "chain": "solana",
-      "mc": 45711791.88949862,
+      "mc": 44847909.82374783,
       "source": "pump"
     },
     {
@@ -200,7 +216,7 @@
       "name": "NotInEmploymentEducationTraining",
       "mint": "Ce2gx9KGXJ6C9Mp5b5x1sn9Mg87JwEbrQby4Zqo3pump",
       "chain": "solana",
-      "mc": 38527685.41667317,
+      "mc": 39766683.44551717,
       "source": "pump"
     },
     {
@@ -208,23 +224,7 @@
       "name": "World Strategic Oil Supply",
       "mint": "sEkKnqHR8KKrjMjFqurrzdyTn4hiivmM8JHKWmopump",
       "chain": "solana",
-      "mc": 34156133.14277272,
-      "source": "pump"
-    },
-    {
-      "symbol": "WOULD",
-      "name": "would",
-      "mint": "J1Wpmugrooj1yMyQKrdZ2vwRXG5rhfx3vTnYE39gpump",
-      "chain": "solana",
-      "mc": 31592695.86414,
-      "source": "pump"
-    },
-    {
-      "symbol": "ZEREBRO",
-      "name": "zerebro",
-      "mint": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
-      "chain": "solana",
-      "mc": 30987747.28828184,
+      "mc": 36331559.73183384,
       "source": "pump"
     },
     {
@@ -232,15 +232,15 @@
       "name": "World Oil Trust Fund",
       "mint": "drLg3vH1p7KVK7YrXSNSPJxtGVDwLy3mHsVofT7pump",
       "chain": "solana",
-      "mc": 30265125.68517988,
+      "mc": 32758622.673804246,
       "source": "pump"
     },
     {
-      "symbol": "PAID",
-      "name": "Paid",
-      "mint": "98kfF7rmsg1QDUEoCqNE7g7M1FdrTt92TEp2CLzypump",
+      "symbol": "ZEREBRO",
+      "name": "zerebro",
+      "mint": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
       "chain": "solana",
-      "mc": 28371364.177294143,
+      "mc": 31630428.857849654,
       "source": "pump"
     }
   ]
